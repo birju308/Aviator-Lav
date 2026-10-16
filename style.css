@@ -64,3 +64,21 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 #adaptiveModelNote{overflow-wrap:anywhere}
 @media(max-width:700px){.backtest-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.backtest-summary{grid-template-columns:1fr}}
+
+
+/* Transparent walk-forward candidate model evaluation */
+.model-verdict{background:#111821;border:1px solid #3b4654;border-radius:12px;padding:14px;margin:14px 0}
+.model-verdict-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.model-verdict-head>div{display:flex;flex-direction:column;gap:4px}
+#modelEdgeVerdict{font-size:1.05rem;letter-spacing:.03em;color:var(--accent2)}
+#modelEdgeDelta{max-width:50%;text-align:right}
+#modelEdgeExplanation{margin:10px 0 0;line-height:1.6}
+.model-comparison-wrap{margin:16px 0}
+.model-comparison-wrap h3{font-size:1rem;margin:0 0 6px}
+.model-comparison-table{width:100%;border-collapse:collapse}
+.model-comparison-table th,.model-comparison-table td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);font-size:.82rem}
+.model-comparison-table th{color:var(--muted);font-weight:650}
+.model-delta-positive{color:#78d6a7;font-weight:700}
+.model-delta-negative{color:#ff9b86;font-weight:700}
+.model-delta-neutral{color:var(--muted)}
+@media(max-width:520px){.model-comparison-table th,.model-comparison-table td{padding:8px 5px;font-size:.75rem}#modelEdgeDelta{max-width:100%;text-align:left}}
