@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#10151d">
   <title>Aviator Lab | Crash Estimate</title>
-  <link rel="stylesheet" href="style.css?v=0.12.0">
+  <link rel="stylesheet" href="style.css?v=0.13.0">
 </head>
 <body>
   <main class="app-shell">
@@ -72,6 +72,36 @@
       <article class="stat-card"><span class="stat-label">Below 2x in last 20</span><strong id="recentBelowValue">N/A</strong><span class="stat-note">Recent sample only</span></article>
     </section>
     <p class="hint">These are descriptions of past rounds only. A streak does not make a higher or lower next result due.</p>
+    <div class="section-label"><span class="step">05</span><span>Live paper-test validation</span></div>
+    <section class="panel adaptive-panel" aria-label="Live no-stake model validation">
+        <section class="paper-tracker" aria-label="Paper prediction tracking">
+          <div class="paper-tracker-head">
+            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">Lock the experimental model estimate before a newly observed round. Each completed result is scored against both the locked model estimate and a rolling-50 median baseline. Ambiguous multi-round batches are skipped rather than guessed.</p></div>
+            <span class="estimate-status" id="paperStatus">OFF</span>
+          </div>
+          <div class="paper-next">
+            <div><span class="stat-label">Guess locked for next observed round</span><strong id="paperNextGuess">Not started</strong></div>
+            <p id="paperNextReason">Start paper test to begin recording guesses before new results arrive.</p>
+          </div>
+          <div class="pattern-learner-grid paper-metrics">
+            <article class="stat-card"><span class="stat-label">Scored rounds</span><strong id="paperScoredCount">0</strong><span class="stat-note">Only single-result syncs</span></article>
+            <article class="stat-card"><span class="stat-label">Band accuracy</span><strong id="paperBandRate">N/A</strong><span class="stat-note">Same multiplier band</span></article>
+            <article class="stat-card"><span class="stat-label">Median absolute error</span><strong id="paperMedianError">N/A</strong><span class="stat-note">Point-guess error</span></article>
+            <article class="stat-card"><span class="stat-label">Within ±0.25x</span><strong id="paperNearRate">N/A</strong><span class="stat-note">Point-guess tolerance</span></article>
+            <article class="stat-card"><span class="stat-label">Rolling-50 baseline error</span><strong id="paperBaselineError">N/A</strong><span id="paperBaselineNote" class="stat-note">Comparable rounds</span></article>
+          </div>
+          <div class="paper-controls">
+            <button id="paperStartButton" class="button primary" type="button">Start paper test</button>
+            <button id="paperPauseButton" class="button secondary" type="button">Pause</button>
+            <button id="paperExportButton" class="button secondary" type="button">Export paper-test CSV</button>
+            <button id="paperResetButton" class="button quiet-danger" type="button">Reset paper log</button>
+          </div>
+          <p id="paperLastOutcome" class="analysis-output">No paper-test rounds scored yet.</p>
+          <p class="disclaimer"><strong>Test only:</strong> paper-test accuracy is descriptive and may be noisy. The tracker does not place bets or make the game predictable. Keep it in no-stake testing; do not use an unvalidated guess to risk money.</p>
+        </section>
+    </section>
+    <div class="hint">Paper test records estimates before the next newly synced completed round; it does not place bets.</div>
+
     <div class="section-label"><span class="step">05</span><span>Completed-round fairness verifier</span></div>
     <section class="panel verifier-panel" id="verifierPanel" aria-labelledby="verifierHeading">
       <div class="panel-title">
@@ -176,30 +206,7 @@
           <strong id="patternGuessMultiplier">N/A</strong>
           <p id="patternNumericReasoning">Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.</p>
         </div>
-        <section class="paper-tracker" aria-label="Paper prediction tracking">
-          <div class="paper-tracker-head">
-            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">Lock a rolling-median estimate before the next observed round. The paper log compares it with the full-history median on the same future results. Multi-round batches are skipped to avoid mis-scoring.</p></div>
-            <span class="estimate-status" id="paperStatus">OFF</span>
-          </div>
-          <div class="paper-next">
-            <div><span class="stat-label">Guess locked for next observed round</span><strong id="paperNextGuess">Not started</strong></div>
-            <p id="paperNextReason">Start paper test to begin recording guesses before new results arrive.</p>
-          </div>
-          <div class="pattern-learner-grid paper-metrics">
-            <article class="stat-card"><span class="stat-label">Scored rounds</span><strong id="paperScoredCount">0</strong><span class="stat-note">Only single-result syncs</span></article>
-            <article class="stat-card"><span class="stat-label">Band accuracy</span><strong id="paperBandRate">N/A</strong><span class="stat-note">Same multiplier band</span></article>
-            <article class="stat-card"><span class="stat-label">Median absolute error</span><strong id="paperMedianError">N/A</strong><span class="stat-note">Point-guess error</span></article>
-            <article class="stat-card"><span class="stat-label">Within ±0.25x</span><strong id="paperNearRate">N/A</strong><span class="stat-note">Point-guess tolerance</span></article>
-            <article class="stat-card"><span class="stat-label">All-history median error</span><strong id="paperBaselineError">N/A</strong><span id="paperBaselineNote" class="stat-note">Starts with new test rounds</span></article>
-          </div>
-          <div class="paper-controls">
-            <button id="paperStartButton" class="button primary" type="button">Start paper test</button>
-            <button id="paperPauseButton" class="button secondary" type="button">Pause</button>
-            <button id="paperResetButton" class="button quiet-danger" type="button">Reset paper log</button>
-          </div>
-          <p id="paperLastOutcome" class="analysis-output">No paper-test rounds scored yet.</p>
-          <p class="disclaimer"><strong>Test only:</strong> paper-test accuracy is descriptive and may be noisy. The tracker does not place bets or make the game predictable. Keep it in no-stake testing; do not use an unvalidated guess to risk money.</p>
-        </section>
+
         <div class="pattern-learner-grid">
           <article class="stat-card"><span class="stat-label">Next-round test guess band</span><strong id="patternGuessBand">N/A</strong><span class="stat-note">Highest model score, not certainty</span></article>
           <article class="stat-card"><span class="stat-label">Historical midpoint in band</span><strong id="patternGuessMedian">N/A</strong><span class="stat-note">Past median, not exact crash point</span></article>
@@ -262,7 +269,7 @@
       <p class="disclaimer"><strong>Read carefully:</strong> This is an experimental frequency model, not a validated AI forecast. The walk-forward test is a small historical diagnostic, not evidence that it can predict independent random outcomes. It does not predict an exact multiplier or crash time. Do not use it as a betting signal.</p>
     </section>
 
-    <div class="section-label"><span class="step">06</span><span>Historical baseline</span></div>
+    <div class="section-label"><span class="step">07</span><span>Historical baseline</span></div>
     <section class="panel estimate-panel">
       <div class="estimate-head">
         <div><p class="kicker">HISTORICAL BASELINE</p><h2>Historical sample summary</h2><p class="muted">Describes past results only; it does not forecast the next crash.</p></div>
@@ -279,13 +286,13 @@
       <p class="disclaimer"><strong>Important:</strong> This estimate is based on past results only. If rounds are independently randomized, previous multipliers do not reveal the next crash point. Do not treat this as betting advice.</p>
     </section>
 
-    <div class="section-label"><span class="step">07</span><span>Saved rounds</span></div>
+    <div class="section-label"><span class="step">08</span><span>Saved rounds</span></div>
     <section class="panel history-panel">
       <div class="panel-title"><div><h2>Round history</h2><p class="muted">Newest results appear first.</p></div><span class="counter" id="historyCountSecondary">0 saved</span></div>
       <div class="table-wrap"><table><thead><tr><th>Round</th><th>Multiplier</th><th>Recorded at</th><th></th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">No results yet. Add a completed round above.</td></tr></tbody></table></div>
     </section>
     <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
-  <script src="script.js?v=0.12.0"></script>
+  <script src="script.js?v=0.13.0"></script>
 </body>
 </html>
