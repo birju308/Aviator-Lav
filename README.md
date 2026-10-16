@@ -51,3 +51,10 @@ The predictor compares a smoothed full-history blend, a recent-25 majority, a la
 The experimental predictor now separates chronological development results from a final, later holdout. It chooses one candidate using only the development window, then evaluates that selected candidate against the baseline on the reserved holdout. Small holdouts show an insufficient-sample verdict. Even a positive holdout result is exploratory—not proof of future accuracy—because random outcomes and small samples can fluctuate.
 
 The model predicts multiplier *bands*, not exact multiplier/time.
+
+
+## Pattern learner (experimental test mode)
+
+The predictor includes an explainable sequence model that blends full-sample and recent band frequencies with observed next-band transitions, repeated 2–3 band motifs, and matching run-length contexts when enough past examples exist. It displays a top-ranked outcome band, the historical median among saved values in that band, the current band streak, recent band sequence, and the amount of matching historical evidence. A separate chronological walk-forward evaluation compares this candidate with simple baselines and reserves a later holdout.
+
+All displayed percentages are model-relative scores, not calibrated real-world probabilities. This is a test-mode pattern model and not a validated predictor for independently randomized rounds; it does not reveal the hidden result or estimate a reliable exact crash time/multiplier.
