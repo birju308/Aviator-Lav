@@ -124,7 +124,7 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 .paper-next{margin:14px 0;padding:14px;border:1px solid #55424c;border-radius:10px;background:linear-gradient(110deg,#241e28,#151d27)}
 .paper-next strong{display:block;color:#ff8b83;font-size:clamp(2rem,5vw,3rem);line-height:1.15;margin:6px 0}
 .paper-next p{margin:6px 0 0;color:var(--muted);font-size:.8rem;line-height:1.6;overflow-wrap:anywhere}
-.paper-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}
+.paper-metrics{grid-template-columns:repeat(5,minmax(0,1fr));margin:12px 0}
 .paper-metrics .stat-card strong{font-size:clamp(1rem,1.7vw,1.35rem);overflow-wrap:anywhere}
 .paper-controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .paper-controls .button{margin:0}
