@@ -35,3 +35,11 @@ input:focus,select:focus{outline:2px solid #ad6973;outline-offset:1px}
 footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:wrap;color:#778494;font-size:.76rem;padding:14px}.footer-mark{color:var(--accent)}
 @media(max-width:700px){.app-shell{width:calc(100% - 20px);padding-top:12px}.hero{padding:23px 20px;min-height:190px}.hero-art{width:90px;flex-basis:90px;transform:scale(.7);transform-origin:center right;margin-left:-20px}.hero-description{font-size:.9rem}.panel{padding:17px}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.estimate-value-wrap{align-items:flex-start;flex-direction:column}.range-box{width:100%}.entry-row{align-items:stretch;flex-direction:column}.entry-row .button{width:100%}.fields{gap:12px}.panel-title{gap:8px}}
 @media(max-width:420px){.offline-pill{font-size:.58rem}.fields{grid-template-columns:1fr}.actions .button{flex:1}.hero-art{display:none}.estimate-head{flex-direction:column}}
+
+
+/* Added for automatic local extension sync and descriptive pattern cards */
+#extensionSyncStatus{padding:10px 12px;border:1px solid #39434f;border-radius:9px;background:#121821;overflow-wrap:anywhere}
+.pattern-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:900px){.pattern-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.pattern-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.pattern-grid{grid-template-columns:1fr}}
