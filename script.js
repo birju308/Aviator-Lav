@@ -87,7 +87,7 @@
   window.addEventListener("message", event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const message = event.data;
-    if (message && (message.source === "aviator-lab-extension-v05" || message.source === "aviator-lab-extension-v06" || message.source === "aviator-lab-extension-v07") && message.type === "AUTO_ROUND_SYNC") {
+    if (message && ["aviator-lab-extension-v05", "aviator-lab-extension-v06", "aviator-lab-extension-v07", "aviator-lab-extension-v08"].includes(message.source) && message.type === "AUTO_ROUND_SYNC") {
       receiveAutoSync(message);
       window.postMessage({
         source: "aviator-lab-page-v06",
@@ -147,7 +147,7 @@
     if(n<30) msg+="This sample is very small. Collect more actual rounds before evaluating any statistical pattern. ";
     else if(n<100) msg+="This is an early sample, not evidence of predictive power. ";
     else msg+="Having 100+ rounds improves the description of this sample but does not make the next result predictable. ";
-    msg+="The displayed median is not a forecast of the next crash point.";
+    msg+="This median is descriptive only. It is not a forecast or betting signal for the next crash point.";
     $("analysisOutput").textContent=msg;
   }
   $("resultForm").addEventListener("submit",e=>{
@@ -160,6 +160,20 @@
     error.hidden=true;rounds.push({multiplier:val,timestamp:new Date().toISOString()});saveHistory();render();input.value="";input.focus();resetAnalysis("Round added. Run analysis to refresh the historical reference.");
   });
   $("analyzeButton").addEventListener("click",analyze);
+  $("removeSyncedButton").addEventListener("click",()=>{
+    const syncedCount = rounds.filter(r => r && r.extensionId).length;
+    if (!syncedCount) {
+      $("saveStatus").textContent = "No auto-synced results found. Manual/imported history was not changed.";
+      return;
+    }
+    if (!confirm(`Remove ${syncedCount} auto-synced result(s) from this browser? Manually entered or CSV-imported rows will be kept.`)) return;
+    rounds = rounds.filter(r => !(r && r.extensionId));
+    saveHistory();
+    render();
+    analyze();
+    const status = $("extensionSyncStatus");
+    if (status) status.textContent = `Removed ${syncedCount} auto-synced result(s). Manually entered/imported history was preserved. Keep only one collector extension enabled to avoid duplicate captures.`;
+  });
   $("clearButton").addEventListener("click",()=>{
     if(!rounds.length)return;
     if(!confirm("Delete all saved rounds from this browser? Export a CSV first if you need a backup."))return;
