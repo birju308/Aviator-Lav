@@ -105,41 +105,72 @@
     return 3;
   }
 
-  function renderAdaptiveModel(vals) {
-    const n = vals.length;
-    const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
-    const overall = [0, 0, 0, 0];
-    const recent = [0, 0, 0, 0];
-    for (const v of vals) overall[outcomeBand(v)]++;
-    const recentVals = vals.slice(-Math.min(50, n));
-    for (const v of recentVals) recent[outcomeBand(v)]++;
-    const rn = recentVals.length;
-    const probs = overall.map((count, i) =>
+
+  function calculateBandModel(history) {
+    const n = history.length;
+    const overall = [0, 0, 0, 0], recent = [0, 0, 0, 0];
+    for (const v of history) overall[outcomeBand(v)]++;
+    const recentValues = history.slice(-Math.min(50, n));
+    for (const v of recentValues) recent[outcomeBand(v)]++;
+    const rn = recentValues.length;
+    const scores = overall.map((count, i) =>
       (n ? 0.65 * ((count + 1) / (n + 4)) : 0) +
       (rn ? 0.35 * ((recent[i] + 1) / (rn + 4)) : 0)
     );
-    const sum = probs.reduce((a,b) => a + b, 0) || 1;
-    const normalized = probs.map(p => p / sum);
+    const sum = scores.reduce((a, b) => a + b, 0) || 1;
+    const probabilities = scores.map(p => p / sum);
     let top = 0;
-    for (let i = 1; i < normalized.length; i++) if (normalized[i] > normalized[top]) top = i;
-    const matching = vals.filter(v => outcomeBand(v) === top);
+    for (let i = 1; i < probabilities.length; i++) {
+      if (probabilities[i] > probabilities[top]) top = i;
+    }
+    return {top, probabilities, overall, recent, n, rn};
+  }
+
+  function renderAdaptiveModel(vals) {
+    const n = vals.length;
+    const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
+    const model = calculateBandModel(vals);
+    const matching = vals.filter(v => outcomeBand(v) === model.top);
     $("modelSampleSize").textContent = n.toLocaleString();
-    $("modelTopBand").textContent = n ? names[top] : "N/A";
-    $("modelTopProbability").textContent = n ? `${(normalized[top] * 100).toFixed(1)}%` : "N/A";
+    $("modelTopBand").textContent = n ? names[model.top] : "N/A";
+    $("modelTopProbability").textContent = n ? `${(model.probabilities[model.top] * 100).toFixed(1)}%` : "N/A";
     $("modelBandMedian").textContent = matching.length ? fmt(median(matching)) : "N/A";
     $("adaptiveModelStatus").textContent = n < 30 ? "TINY SAMPLE" : n < 100 ? "EARLY SAMPLE" : "HISTORICAL MIX";
     for (let i = 0; i < 4; i++) {
-      $("modelP" + i).textContent = n ? `${(normalized[i] * 100).toFixed(1)}%` : "N/A";
-      $("modelBar" + i).style.width = `${(normalized[i] * 100).toFixed(1)}%`;
+      $("modelP" + i).textContent = n ? `${(model.probabilities[i] * 100).toFixed(1)}%` : "N/A";
+      $("modelBar" + i).style.width = `${(model.probabilities[i] * 100).toFixed(1)}%`;
       $("modelDetail" + i).textContent = n
-        ? `${overall[i]} / ${n} overall · ${recent[i]} / ${rn} in last saved entries`
+        ? `${model.overall[i]} / ${n} overall · ${model.recent[i]} / ${model.rn} in last saved entries`
         : "No data";
     }
+
+    // Walk-forward test: every historical test uses only results that came before it.
+    let hits = 0, baselineHits = 0, testCount = 0;
+    if (n >= 20) {
+      const warmup = Math.min(30, Math.max(12, Math.floor(n * 0.5)));
+      for (let i = warmup; i < n; i++) {
+        const train = vals.slice(0, i);
+        const predicted = calculateBandModel(train).top;
+        const counts = [0, 0, 0, 0];
+        train.forEach(v => counts[outcomeBand(v)]++);
+        let baseline = 0;
+        for (let j = 1; j < counts.length; j++) if (counts[j] > counts[baseline]) baseline = j;
+        const actual = outcomeBand(vals[i]);
+        if (predicted === actual) hits++;
+        if (baseline === actual) baselineHits++;
+        testCount++;
+      }
+    }
+    $("modelBacktestHit").textContent = testCount ? `${hits}/${testCount} (${(hits / testCount * 100).toFixed(1)}%)` : "Need 20+";
+    $("modelBacktestBaseline").textContent = testCount ? `${baselineHits}/${testCount} (${(baselineHits / testCount * 100).toFixed(1)}%)` : "Need 20+";
+    $("modelBacktestCount").textContent = String(testCount);
+
     let note = n
-      ? `The highest historical band in this smoothed frequency mix is ${names[top]} (${(normalized[top] * 100).toFixed(1)}%). The midpoint is the median of past rows in that band, not a forecast of the next multiplier. `
-      : "Add completed results to calculate sample frequencies. ";
-    if (n < 100) note += "The sample is small and estimates are unstable. ";
-    note += "This model learns only from recorded results; it has no access to hidden game inputs and is not a validated predictor of independent random outcomes.";
+      ? `The model currently ranks ${names[model.top]} highest in a smoothed history-frequency blend (${(model.probabilities[model.top] * 100).toFixed(1)}% score). Its displayed midpoint is the median of past results within that band—not an exact next-crash prediction. `
+      : "Add completed results to calculate historical frequencies. ";
+    if (n < 50) note += "This sample is too small to assess model quality reliably. ";
+    else note += "Check the walk-forward result against the simple most-common-band baseline; if it does not beat the baseline across a much larger sample, there is no evidence of added predictive value. ";
+    note += "A frequency score is not a calibrated chance for the next round, and historical streaks do not make a result due.";
     $("adaptiveModelNote").textContent = note;
   }
 
