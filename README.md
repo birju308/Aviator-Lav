@@ -63,3 +63,10 @@ All displayed percentages are model-relative scores, not calibrated real-world p
 ## Single-number pattern guess (experimental)
 
 The pattern learner displays a test-mode numeric point guess (e.g. 1.49x or 2.00x) for usability. It prefers the median multiplier observed after matching historical 2–3 band sequences when there are at least three examples; otherwise it falls back to the recent matching-band median or the overall selected-band median. The UI shows which evidence source was used and labels confidence low. This is a historical analogy for test mode, not a calibrated probability, not a forecast derived from hidden round inputs, and not a reliable exact crash prediction.
+
+
+## Live paper-test accuracy tracker
+
+The site now has a no-stake tracker. Click **Start paper test** to lock a numeric guess based on currently saved history for the next newly synced round. If exactly one new round arrives, it records the actual, band hit/miss, absolute numeric error, and then locks a fresh forecast. If several results arrive in one batch, it does not guess their alignment; it skips scoring that batch. The tracker is local to the browser and can be paused or reset independently from round history.
+
+This evaluates the forecast, it does not improve or guarantee it. Do not use an unvalidated guess for real-money betting. A random crash outcome cannot be reliably inferred from historical patterns alone.
