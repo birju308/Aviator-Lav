@@ -255,6 +255,7 @@
     setVerifierStatus("pfOverallStatus", "Enter the exact seeds, combined hash and finished multiplier, then verify.", "verify-neutral");
     setVerifierStatus("pfCalculatedHashStatus", "Not checked", "verify-neutral");
     $("pfCalculatedHashNote").textContent = "Seed concatenation in panel order, with no separators";
+    $("pfCalculatedHashValue").textContent = "N/A";
     $("pfHexPrefix").textContent = "N/A";
     $("pfHexDecimal").textContent = "N/A";
     $("pfHashMultiplier").textContent = "N/A";
@@ -311,6 +312,7 @@
       $("pfCalculatedHashNote").textContent = hashMatches
         ? "Recalculated SHA-512 equals the hash copied from the finished round."
         : "The values do not reproduce the shown hash. Recheck every seed character and panel order.";
+      $("pfCalculatedHashValue").textContent = computedHash;
       $("pfHexPrefix").textContent = fromShownHash.prefix;
       $("pfHexDecimal").textContent = fromShownHash.decimal;
       $("pfHashMultiplier").textContent = fromShownHash.multiplierText + "x" + (displayedResultMatches ? " · MATCH" : " · DIFFERS");
