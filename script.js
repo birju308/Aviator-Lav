@@ -97,6 +97,52 @@
     }
   });
 
+
+  function outcomeBand(value) {
+    if (value < 2) return 0;
+    if (value < 5) return 1;
+    if (value < 10) return 2;
+    return 3;
+  }
+
+  function renderAdaptiveModel(vals) {
+    const n = vals.length;
+    const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
+    const overall = [0, 0, 0, 0];
+    const recent = [0, 0, 0, 0];
+    for (const v of vals) overall[outcomeBand(v)]++;
+    const recentVals = vals.slice(-Math.min(50, n));
+    for (const v of recentVals) recent[outcomeBand(v)]++;
+    const rn = recentVals.length;
+    const probs = overall.map((count, i) =>
+      (n ? 0.65 * ((count + 1) / (n + 4)) : 0) +
+      (rn ? 0.35 * ((recent[i] + 1) / (rn + 4)) : 0)
+    );
+    const sum = probs.reduce((a,b) => a + b, 0) || 1;
+    const normalized = probs.map(p => p / sum);
+    let top = 0;
+    for (let i = 1; i < normalized.length; i++) if (normalized[i] > normalized[top]) top = i;
+    const matching = vals.filter(v => outcomeBand(v) === top);
+    $("modelSampleSize").textContent = n.toLocaleString();
+    $("modelTopBand").textContent = n ? names[top] : "N/A";
+    $("modelTopProbability").textContent = n ? `${(normalized[top] * 100).toFixed(1)}%` : "N/A";
+    $("modelBandMedian").textContent = matching.length ? fmt(median(matching)) : "N/A";
+    $("adaptiveModelStatus").textContent = n < 30 ? "TINY SAMPLE" : n < 100 ? "EARLY SAMPLE" : "HISTORICAL MIX";
+    for (let i = 0; i < 4; i++) {
+      $("modelP" + i).textContent = n ? `${(normalized[i] * 100).toFixed(1)}%` : "N/A";
+      $("modelBar" + i).style.width = `${(normalized[i] * 100).toFixed(1)}%`;
+      $("modelDetail" + i).textContent = n
+        ? `${overall[i]} / ${n} overall · ${recent[i]} / ${rn} in last saved entries`
+        : "No data";
+    }
+    let note = n
+      ? `The highest historical band in this smoothed frequency mix is ${names[top]} (${(normalized[top] * 100).toFixed(1)}%). The midpoint is the median of past rows in that band, not a forecast of the next multiplier. `
+      : "Add completed results to calculate sample frequencies. ";
+    if (n < 100) note += "The sample is small and estimates are unstable. ";
+    note += "This model learns only from recorded results; it has no access to hidden game inputs and is not a validated predictor of independent random outcomes.";
+    $("adaptiveModelNote").textContent = note;
+  }
+
   function render() {
     const vals = values(), n = vals.length;
     $("totalRounds").textContent = n.toLocaleString();
@@ -104,6 +150,10 @@
     $("medianValue").textContent = fmt(median(vals));
     $("belowTwoValue").textContent = n ? pct(vals.filter(v=>v<2).length,n) : "N/A";
     renderPatternStats(vals);
+    renderAdaptiveModel(vals);
+    const autoCount = rounds.filter(r => r && r.extensionId).length;
+    const purgeButton = $("removeSyncedButton");
+    if (purgeButton) purgeButton.textContent = `Remove auto-synced results (${autoCount})`;
     $("historyCount").textContent = `${n} / ${MAX_ROUNDS}`;
     $("historyCountSecondary").textContent = `${n} saved`;
     $("dataMeter").style.width = `${Math.min(100, n)}%`;
@@ -137,6 +187,7 @@
       $("estimateValue").innerHTML='--<small>x</small>';
       $("rangeValue").textContent="--";
       $("analysisOutput").textContent="Enter completed multipliers first. No estimate can be calculated without data.";
+      renderAdaptiveModel([]);
       return;
     }
     const med=median(vals), low=quantile(vals,.25), high=quantile(vals,.75);
