@@ -80,7 +80,7 @@
     const latest = message.lastCollectedAt ? new Date(message.lastCollectedAt).toLocaleTimeString() : "not yet";
     const target = $("extensionSyncStatus");
     if (target) {
-      target.textContent = `Chrome extension connected · ${message.rounds.length} automatically collected result(s) available · ${added} new result(s) synced this check. Game-tab activity last recorded: ${latest}. Keep Chrome and the Aviator tab open to collect new rounds.`;
+      target.textContent = `Chrome extension connected · ${Number(message.totalCollected ?? message.rounds.length).toLocaleString()} collected result(s) in extension storage · ${added} new result(s) synced this check. Game-tab activity last recorded: ${latest}. Keep Chrome and the Aviator tab open to collect new rounds.`;
     }
   }
 
