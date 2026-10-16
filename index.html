@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#10151d">
   <title>Aviator Lab | Crash Estimate</title>
-  <link rel="stylesheet" href="style.css?v=0.13.0">
+  <link rel="stylesheet" href="style.css?v=0.14.0">
 </head>
 <body>
   <main class="app-shell">
@@ -76,12 +76,12 @@
     <section class="panel adaptive-panel" aria-label="Live no-stake model validation">
         <section class="paper-tracker" aria-label="Paper prediction tracking">
           <div class="paper-tracker-head">
-            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">Lock the experimental model estimate before a newly observed round. Each completed result is scored against both the locked model estimate and a rolling-50 median baseline. Ambiguous multi-round batches are skipped rather than guessed.</p></div>
+            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">With at least 35 saved rounds, the no-stake paper test auto-starts on first visit and locks one estimate before the next newly synced result. Each completed result is scored against the locked model estimate and rolling-50 median baseline. Refreshing will not overwrite a locked estimate; ambiguous multi-round batches are skipped rather than guessed.</p></div>
             <span class="estimate-status" id="paperStatus">OFF</span>
           </div>
           <div class="paper-next">
             <div><span class="stat-label">Guess locked for next observed round</span><strong id="paperNextGuess">Not started</strong></div>
-            <p id="paperNextReason">Start paper test to begin recording guesses before new results arrive.</p>
+            <p id="paperNextReason">Waiting for enough saved rounds to lock the first no-stake estimate.</p>
           </div>
           <div class="pattern-learner-grid paper-metrics">
             <article class="stat-card"><span class="stat-label">Scored rounds</span><strong id="paperScoredCount">0</strong><span class="stat-note">Only single-result syncs</span></article>
@@ -293,6 +293,6 @@
     </section>
     <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
-  <script src="script.js?v=0.13.0"></script>
+  <script src="script.js?v=0.14.0"></script>
 </body>
 </html>
