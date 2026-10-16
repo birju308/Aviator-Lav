@@ -3,6 +3,104 @@
   const STORAGE_KEY = "aviatorAnalyzer.rounds.v2";
   const MAX_ROUNDS = 5000;
   const $ = (id) => document.getElementById(id);
+  const PAPER_KEY = "aviatorAnalyzer.paperTracker.v1";
+  let paperState = loadPaperState();
+
+  function loadPaperState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PAPER_KEY) || "{}");
+      return {
+        active: !!saved.active,
+        pending: saved.pending && Number.isFinite(saved.pending.point) ? saved.pending : null,
+        results: Array.isArray(saved.results) ? saved.results.filter(r => r && Number.isFinite(r.actual) && Number.isFinite(r.guess)).slice(-1000) : [],
+        skipped: Number.isFinite(saved.skipped) ? saved.skipped : 0,
+        lastMessage: typeof saved.lastMessage === "string" ? saved.lastMessage : ""
+      };
+    } catch (_) {
+      return {active:false,pending:null,results:[],skipped:0,lastMessage:""};
+    }
+  }
+
+  function savePaperState() {
+    try { localStorage.setItem(PAPER_KEY, JSON.stringify(paperState)); } catch (_) {}
+  }
+
+  function makePaperForecast(history) {
+    if (!history.length) return null;
+    const model = calculatePatternGuess(history);
+    if (!Number.isFinite(model.numericGuess)) return null;
+    return {
+      point: model.numericGuess,
+      band: model.top,
+      bandLabel: model.names[model.top],
+      modelScore: model.scores[model.top],
+      sampleSize: history.length,
+      createdAt: new Date().toISOString(),
+      recentSequence: model.recentSequence
+    };
+  }
+
+  function renderPaperTracker() {
+    const valuesNow = values();
+    if (paperState.active && !paperState.pending) {
+      paperState.pending = makePaperForecast(valuesNow);
+      savePaperState();
+    }
+    const pending = paperState.pending;
+    $("paperStatus").textContent = paperState.active ? "PAPER TEST ACTIVE" : "PAUSED";
+    $("paperNextGuess").textContent = pending ? fmt(pending.point) : (paperState.active ? "Waiting for data" : "Not started");
+    $("paperNextReason").textContent = pending
+      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. Top band: ${pending.bandLabel}; sequence: ${(pending.recentSequence||[]).join(" → ")}. Relative score ${(pending.modelScore*100).toFixed(1)}% is not calibrated odds.`
+      : "Start paper test to lock a forecast before the next newly synced result.";
+    const results = paperState.results;
+    const bandHits = results.filter(r => r.bandHit).length;
+    const nearHits = results.filter(r => r.absError <= 0.25).length;
+    const errors = results.map(r => r.absError).sort((a,b)=>a-b);
+    const medErr = errors.length ? (errors.length%2 ? errors[(errors.length-1)/2] : (errors[errors.length/2-1]+errors[errors.length/2])/2) : NaN;
+    $("paperScoredCount").textContent = results.length.toLocaleString();
+    $("paperBandRate").textContent = results.length ? pct(bandHits,results.length) : "N/A";
+    $("paperMedianError").textContent = Number.isFinite(medErr) ? fmt(medErr).replace("x","x") : "N/A";
+    $("paperNearRate").textContent = results.length ? pct(nearHits,results.length) : "N/A";
+    if (results.length) {
+      const last = results[results.length-1];
+      $("paperLastOutcome").textContent = `Last scored result: guess ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
+    } else {
+      $("paperLastOutcome").textContent = paperState.lastMessage || "No paper-test rounds scored yet. Start paper test, keep both tabs open, and wait for one new round to sync.";
+    }
+    $("paperStartButton").textContent = paperState.active ? "Refresh locked guess" : "Start paper test";
+    $("paperPauseButton").disabled = !paperState.active;
+  }
+
+  function settlePaperOnLiveResult(actual, timestamp) {
+    if (!paperState.active) return;
+    const pending = paperState.pending;
+    if (!pending) {
+      paperState.skipped += 1;
+      paperState.lastMessage = "A result arrived without a locked guess; it was not scored.";
+      paperState.pending = makePaperForecast(values());
+      savePaperState();
+      return;
+    }
+    const absError = Math.abs(actual - pending.point);
+    const result = {
+      guess: pending.point,
+      actual,
+      absError,
+      guessBand: pending.band,
+      actualBand: outcomeBand(actual),
+      bandHit: outcomeBand(actual) === pending.band,
+      nearHit: absError <= 0.25,
+      guessCreatedAt: pending.createdAt,
+      observedAt: timestamp || new Date().toISOString(),
+      sampleSize: pending.sampleSize
+    };
+    paperState.results.push(result);
+    paperState.results = paperState.results.slice(-1000);
+    paperState.lastMessage = `Scored round ${paperState.results.length}: ${result.bandHit ? "band hit" : "band miss"}; absolute error ${fmt(absError)}.`;
+    paperState.pending = null;
+    savePaperState();
+  }
+
   let rounds = loadHistory();
 
   function loadHistory() {
@@ -54,27 +152,44 @@
   function receiveAutoSync(message) {
     if (!Array.isArray(message.rounds)) return;
     let added = 0;
+    const newlyAdded = [];
     const existingIds = new Set(rounds.map(r => r.extensionId).filter(Boolean));
     for (const item of message.rounds) {
       if (!item || typeof item.id !== "string" || existingIds.has(item.id)) continue;
       const multiplier = Number(item.multiplier);
       if (!Number.isFinite(multiplier) || multiplier < 1 || multiplier > 1000000) continue;
       const parsedTime = Date.parse(item.timestamp || "");
+      const observedTimestamp = Number.isFinite(parsedTime) ? new Date(parsedTime).toISOString() : new Date().toISOString();
       rounds.push({
         multiplier,
-        timestamp: Number.isFinite(parsedTime) ? new Date(parsedTime).toISOString() : new Date().toISOString(),
+        timestamp: observedTimestamp,
         extensionId: item.id,
         source: "Chrome extension auto-sync"
       });
+      newlyAdded.push({multiplier,timestamp:observedTimestamp});
       existingIds.add(item.id);
       added++;
       if (rounds.length >= MAX_ROUNDS) break;
     }
     if (added) {
       rounds = rounds.slice(-MAX_ROUNDS);
+      if (paperState.active && newlyAdded.length) {
+        if (newlyAdded.length === 1) {
+          // Score the forecast that was locked before this newly observed completed result.
+          settlePaperOnLiveResult(newlyAdded[0].multiplier,newlyAdded[0].timestamp);
+        } else {
+          // A batch cannot be safely aligned one-by-one to pending forecasts.
+          paperState.skipped += newlyAdded.length;
+          paperState.pending = null;
+          paperState.lastMessage = `Skipped scoring a batch of ${newlyAdded.length} results because the individual round-to-guess order was ambiguous.`;
+        }
+        if (paperState.active) paperState.pending = makePaperForecast(values());
+        savePaperState();
+      }
       saveHistory();
       render();
       analyze();
+      renderPaperTracker();
     }
     const frameCount = Array.isArray(message.frames) ? message.frames.length : 0;
     const latest = message.lastCollectedAt ? new Date(message.lastCollectedAt).toLocaleTimeString() : "not yet";
@@ -476,6 +591,7 @@
 
   function render() {
     const vals = values(), n = vals.length;
+    renderPaperTracker();
     $("totalRounds").textContent = n.toLocaleString();
     $("averageValue").textContent = n ? fmt(vals.reduce((a,b)=>a+b,0)/n) : "N/A";
     $("medianValue").textContent = fmt(median(vals));
@@ -543,6 +659,29 @@
     error.hidden=true;rounds.push({multiplier:val,timestamp:new Date().toISOString()});saveHistory();render();input.value="";input.focus();resetAnalysis("Round added. Run analysis to refresh the historical reference.");
   });
   $("analyzeButton").addEventListener("click",analyze);
+  $("paperStartButton").addEventListener("click",()=>{
+    paperState.active = true;
+    paperState.pending = makePaperForecast(values());
+    paperState.lastMessage = paperState.pending
+      ? "Paper test started. This guess is locked for the next single newly synced result."
+      : "Cannot lock a guess until there is usable history.";
+    savePaperState();
+    renderPaperTracker();
+  });
+  $("paperPauseButton").addEventListener("click",()=>{
+    paperState.active = false;
+    paperState.pending = null;
+    paperState.lastMessage = "Paper test paused. No new results will be scored.";
+    savePaperState();
+    renderPaperTracker();
+  });
+  $("paperResetButton").addEventListener("click",()=>{
+    if(!confirm("Reset only the paper-test guesses and scores? Your round history will not be deleted.")) return;
+    paperState = {active:false,pending:null,results:[],skipped:0,lastMessage:"Paper-test log reset. Start again to record fresh guesses."};
+    savePaperState();
+    renderPaperTracker();
+  });
+
   $("removeSyncedButton").addEventListener("click",()=>{
     const syncedCount = rounds.filter(r => r && r.extensionId).length;
     if (!syncedCount) {
@@ -588,5 +727,6 @@
     e.target.value="";
   });
   render();
+  renderPaperTracker();
   if(rounds.length) analyze();
 })();
