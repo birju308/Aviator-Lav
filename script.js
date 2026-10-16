@@ -87,8 +87,13 @@
   window.addEventListener("message", event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const message = event.data;
-    if (message && message.source === "aviator-lab-extension-v05" && message.type === "AUTO_ROUND_SYNC") {
+    if (message && (message.source === "aviator-lab-extension-v05" || message.source === "aviator-lab-extension-v06") && message.type === "AUTO_ROUND_SYNC") {
       receiveAutoSync(message);
+      window.postMessage({
+        source: "aviator-lab-page-v06",
+        type: "AUTO_SYNC_ACK",
+        ids: Array.isArray(message.rounds) ? message.rounds.map(item => item && item.id).filter(Boolean) : []
+      }, window.location.origin);
     }
   });
 
