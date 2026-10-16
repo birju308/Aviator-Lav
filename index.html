@@ -92,9 +92,9 @@
         <div class="model-band"><div class="model-band-head"><span>10.00x+</span><strong id="modelP3">N/A</strong></div><div class="meter"><div id="modelBar3"></div></div><p class="hint" id="modelDetail3">No data</p></div>
       </div>
       <div class="adaptive-summary backtest-summary">
-        <article class="stat-card"><span class="stat-label">Walk-forward band hits</span><strong id="modelBacktestHit">N/A</strong><span class="stat-note">Past-only rolling test</span></article>
-        <article class="stat-card"><span class="stat-label">Most-common-band baseline</span><strong id="modelBacktestBaseline">N/A</strong><span class="stat-note">Simple reference, same test rounds</span></article>
-        <article class="stat-card"><span class="stat-label">Test rounds</span><strong id="modelBacktestCount">0</strong><span class="stat-note">No future data used for each test</span></article>
+        <article class="stat-card"><span class="stat-label">Development winner hits</span><strong id="modelBacktestHit">N/A</strong><span class="stat-note">Past-only rolling test</span></article>
+        <article class="stat-card"><span class="stat-label">Development baseline</span><strong id="modelBacktestBaseline">N/A</strong><span class="stat-note">Simple reference, same test rounds</span></article>
+        <article class="stat-card"><span class="stat-label">Development rounds</span><strong id="modelBacktestCount">0</strong><span class="stat-note">No future data used for each test</span></article>
       </div>
       <div class="model-verdict">
         <div class="model-verdict-head">
@@ -105,12 +105,22 @@
       </div>
       <div class="model-comparison-wrap">
         <h3>Walk-forward model comparison</h3>
-        <p class="hint">Each test prediction is made from previous results only. Candidate selection on a small historical sample can overfit.</p>
+        <p class="hint">Candidate models are ranked only in the earlier development window. The final chronological holdout is kept separate and is not used to choose the winner.</p>
         <div class="table-wrap">
           <table class="model-comparison-table">
             <thead><tr><th>Model</th><th>Band hits</th><th>vs baseline</th></tr></thead>
             <tbody id="modelComparisonBody"><tr><td colspan="3" class="empty">Need at least 20 saved rounds.</td></tr></tbody>
           </table>
+        </div>
+      </div>
+      <div class="model-comparison-wrap holdout-wrap">
+        <h3>Untouched final holdout</h3>
+        <p class="hint">After choosing a model on earlier rounds, this reports performance on the later rounds reserved for validation.</p>
+        <div class="adaptive-summary backtest-summary holdout-summary">
+          <article class="stat-card"><span class="stat-label">Selected model</span><strong id="modelHoldoutSelected">N/A</strong><span class="stat-note">Chosen on development window</span></article>
+          <article class="stat-card"><span class="stat-label">Holdout model hits</span><strong id="modelHoldoutModelHits">N/A</strong><span class="stat-note">Later unseen rounds</span></article>
+          <article class="stat-card"><span class="stat-label">Holdout baseline hits</span><strong id="modelHoldoutBaselineHits">N/A</strong><span class="stat-note">Same holdout rounds</span></article>
+          <article class="stat-card"><span class="stat-label">Holdout rounds</span><strong id="modelHoldoutCount">0</strong><span class="stat-note">Final chronological segment</span></article>
         </div>
       </div>
       <div id="adaptiveModelNote" class="analysis-output">Add completed results to evaluate the experimental historical frequency model.</div>
