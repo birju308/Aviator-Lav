@@ -348,6 +348,139 @@
     };
   }
 
+  // Small supervised ML experiment: multinomial logistic regression trained in-browser.
+  // Features use only the history available before each target round.
+  function mlFeatures(history) {
+    const seq = history.map(outcomeBand);
+    const n = seq.length;
+    const f = [1];
+    for (let lag = 1; lag <= 4; lag++) {
+      const b = n - lag >= 0 ? seq[n - lag] : -1;
+      for (let k = 0; k < 4; k++) f.push(b === k ? 1 : 0);
+    }
+    let streak = 0;
+    if (n) {
+      for (let i = n - 1; i >= 0 && seq[i] === seq[n - 1]; i--) streak++;
+    }
+    f.push(Math.min(streak, 6) / 6);
+    for (const windowSize of [10, 30]) {
+      const slice = seq.slice(-Math.min(windowSize, n));
+      const counts = [0, 0, 0, 0];
+      slice.forEach(b => counts[b]++);
+      for (let k = 0; k < 4; k++) f.push(slice.length ? counts[k] / slice.length : 0.25);
+    }
+    const last10 = history.slice(-10);
+    const last30 = history.slice(-30);
+    const med10 = median(last10);
+    const med30 = median(last30);
+    const mean10 = last10.length ? last10.reduce((a,b)=>a+b,0)/last10.length : NaN;
+    f.push(Number.isFinite(med10) ? Math.log1p(med10) / 14 : 0);
+    f.push(Number.isFinite(med30) ? Math.log1p(med30) / 14 : 0);
+    f.push(Number.isFinite(mean10) ? Math.log1p(mean10) / 14 : 0);
+    return f;
+  }
+
+  function fitLocalML(history, endIndex) {
+    const classCount = 4;
+    const featureCount = mlFeatures(history.slice(0, Math.min(history.length, Math.max(1, endIndex)))).length;
+    const weights = Array.from({length:classCount},()=>Array(featureCount).fill(0));
+    const first = Math.max(25, endIndex - 600);
+    const examples = [];
+    for (let i = first; i < endIndex; i++) {
+      examples.push({x:mlFeatures(history.slice(0,i)),y:outcomeBand(history[i])});
+    }
+    if (examples.length < 10) return {weights,examples:examples.length,featureCount,ready:false};
+    // Full-batch softmax regression with L2 regularization and bounded gradient steps.
+    const epochs = 90, learningRate = 0.16, lambda = 0.025;
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      const grad = Array.from({length:classCount},()=>Array(featureCount).fill(0));
+      for (const ex of examples) {
+        const logits = weights.map(row=>row.reduce((sum,w,j)=>sum+w*ex.x[j],0));
+        const maxLogit = Math.max(...logits);
+        const exp = logits.map(v=>Math.exp(Math.max(-30,Math.min(30,v-maxLogit))));
+        const denom = exp.reduce((a,b)=>a+b,0) || 1;
+        for (let c = 0; c < classCount; c++) {
+          const error = exp[c]/denom - (ex.y===c?1:0);
+          for (let j = 0; j < featureCount; j++) grad[c][j] += error*ex.x[j];
+        }
+      }
+      for (let c = 0; c < classCount; c++) {
+        for (let j = 0; j < featureCount; j++) {
+          const regularizer = j === 0 ? 0 : lambda*weights[c][j];
+          const g = grad[c][j]/examples.length + regularizer;
+          weights[c][j] -= learningRate*Math.max(-2,Math.min(2,g));
+        }
+      }
+    }
+    return {weights,examples:examples.length,featureCount,ready:true};
+  }
+
+  function predictLocalML(fit, history) {
+    const labels = ["1.00x–1.99x","2.00x–4.99x","5.00x–9.99x","10.00x+"];
+    if (!fit || !fit.ready || !history.length) return {top:0,probs:[0.25,0.25,0.25,0.25],labels,ready:false};
+    const x = mlFeatures(history);
+    const logits = fit.weights.map(row=>row.reduce((sum,w,j)=>sum+w*x[j],0));
+    const maxLogit = Math.max(...logits);
+    const exp = logits.map(v=>Math.exp(Math.max(-30,Math.min(30,v-maxLogit))));
+    const total = exp.reduce((a,b)=>a+b,0) || 1;
+    const probs = exp.map(v=>v/total);
+    let top = 0;
+    for (let i=1;i<probs.length;i++) if(probs[i]>probs[top]) top=i;
+    return {top,probs,labels,ready:true};
+  }
+
+  function renderLocalML(vals) {
+    const bandNode = $("localMLBand");
+    if (!bandNode) return;
+    const n = vals.length;
+    const fit = fitLocalML(vals,n);
+    const current = predictLocalML(fit,vals);
+    $("localMLStatus").textContent = fit.ready ? "TRAINED IN THIS BROWSER" : "NEED MORE HISTORY";
+    $("localMLBand").textContent = n ? current.labels[current.top] : "N/A";
+    $("localMLScore").textContent = n && current.ready ? (current.probs[current.top]*100).toFixed(1)+"%" : "N/A";
+    $("localMLExamples").textContent = fit.examples.toLocaleString();
+    for(let k=0;k<4;k++) {
+      $("localMLP"+k).textContent = current.ready ? (current.probs[k]*100).toFixed(1)+"%" : "N/A";
+      $("localMLBar"+k).style.width = current.ready ? (current.probs[k]*100).toFixed(1)+"%" : "0%";
+    }
+
+    // Separate chronological validation: fit only on the earlier segment,
+    // then keep weights frozen across the final unseen segment.
+    const minTrainIndex = Math.min(30,Math.max(25,Math.floor(n*0.25)));
+    const warmup = Math.min(30,Math.max(12,Math.floor(n*0.35)));
+    const allRows = [];
+    for(let i=warmup;i<n;i++) allRows.push(i);
+    const holdoutCount = allRows.length >= 10 ? Math.max(5,Math.ceil(allRows.length*0.30)) : Math.max(0,Math.ceil(allRows.length*0.30));
+    const testStart = allRows.length ? allRows[allRows.length-holdoutCount] : n;
+    const testFit = fitLocalML(vals,testStart);
+    let mlHits=0, baselineHits=0, testN=0;
+    for(let i=testStart;i<n;i++) {
+      const guess = predictLocalML(testFit,vals.slice(0,i));
+      const actual = outcomeBand(vals[i]);
+      const counts=[1,1,1,1];
+      vals.slice(0,i).forEach(v=>counts[outcomeBand(v)]++);
+      let base=0;
+      for(let j=1;j<4;j++) if(counts[j]>counts[base]) base=j;
+      if(guess.ready && guess.top===actual) mlHits++;
+      if(base===actual) baselineHits++;
+      testN++;
+    }
+    $("localMLHoldout").textContent = testN && testFit.ready ? `${mlHits}/${testN} (${(100*mlHits/testN).toFixed(1)}%)` : "N/A";
+    $("localMLBaseline").textContent = testN ? `${baselineHits}/${testN} (${(100*baselineHits/testN).toFixed(1)}%)` : "N/A";
+    const delta = testN && testFit.ready ? 100*(mlHits-baselineHits)/testN : NaN;
+    $("localMLVerdict").textContent = Number.isFinite(delta)
+      ? (delta>0 ? "+" : "")+delta.toFixed(1)+" pp vs baseline"
+      : "Not enough validation data";
+    $("localMLExplanation").textContent = !fit.ready
+      ? "Need at least 35 completed rounds before training this supervised model."
+      : Number.isFinite(delta) && delta > 0
+        ? "The local model performed better on this small frozen holdout. This is an experiment, not proof of a repeatable edge; keep paper-testing."
+        : "This holdout does not show the local ML model beating the simple historical baseline. The model is genuinely trained on past sequence features, but it cannot reveal hidden future outcomes.";
+    $("localMLNote").textContent = fit.ready
+      ? `Trained locally on ${fit.examples} earlier one-step examples using four prior bands, streak length, rolling band frequencies and recent multiplier summaries. The displayed score is a model score, not a calibrated chance of the next crash.`
+      : "The model runs in this browser only; it does not send history to an external AI service.";
+  }
+
   function renderPatternLearner(vals) {
     const model=calculatePatternGuess(vals);
     $("patternModelStatus").textContent=model.status;
@@ -577,6 +710,7 @@
     renderPatternStats(vals);
     renderPatternLearner(vals);
     renderAdaptiveModel(vals);
+    renderLocalML(vals);
     const autoCount = rounds.filter(r => r && r.extensionId).length;
     const purgeButton = $("removeSyncedButton");
     if (purgeButton) purgeButton.textContent = `Remove auto-synced results (${autoCount})`;
