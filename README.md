@@ -32,3 +32,10 @@ The page includes an experimental frequency explorer that refreshes when the sav
 ## Cleaning collector duplicates
 
 The **Remove auto-synced results (N)** button removes only records tagged as Chrome-extension syncs, while keeping manually entered and CSV-imported records. Remove older duplicate collector extensions from Chrome and keep only one version enabled before continuing automatic collection.
+
+
+## Experimental crash predictor
+
+The UI ranks four multiplier bands using a smoothed blend of full-sample frequency and the latest 50 saved results. It also runs a walk-forward diagnostic: each historical test uses only earlier results, then compares the selected band with a simple most-common-band baseline. With small samples the test is noisy and should not be interpreted as predictive skill. These are historical frequency summaries, not calibrated future odds or an exact crash prediction.
+
+Keep collection data clean: multiple collector extension versions can cause duplicates. Remove old collector versions and use the website's auto-synced-results cleanup button if necessary.
