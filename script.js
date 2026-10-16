@@ -429,6 +429,56 @@
     return {top,probs,labels,ready:true};
   }
 
+
+  // Numeric supervised regression experiment. The target is log-scaled to reduce
+  // domination by rare very large multipliers. This remains a historical-only model.
+  function fitLocalRegression(history, endIndex) {
+    const limit = Math.min(history.length, Math.max(0, endIndex));
+    const featureCount = mlFeatures(history.slice(0, Math.max(1,limit))).length;
+    const weights = Array(featureCount).fill(0);
+    const first = Math.max(30, limit - 600);
+    const examples = [];
+    const targetScale = Math.log1p(1000);
+    for (let i = first; i < limit; i++) {
+      const actual = history[i];
+      if (!Number.isFinite(actual) || actual < 1) continue;
+      examples.push({
+        x: mlFeatures(history.slice(0,i)),
+        y: Math.log1p(Math.min(actual,1000)) / targetScale
+      });
+    }
+    if (examples.length < 20) return {weights,examples:examples.length,featureCount,ready:false};
+    const epochs = 180, learningRate = 0.08, lambda = 0.035;
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      const grad = Array(featureCount).fill(0);
+      for (const ex of examples) {
+        const prediction = weights.reduce((sum,w,j)=>sum+w*ex.x[j],0);
+        const error = Math.max(-0.5,Math.min(0.5,prediction-ex.y));
+        for (let j = 0; j < featureCount; j++) grad[j] += error*ex.x[j];
+      }
+      for (let j = 0; j < featureCount; j++) {
+        const regularizer = j === 0 ? 0 : lambda*weights[j];
+        const g = grad[j]/examples.length + regularizer;
+        weights[j] -= learningRate*Math.max(-1,Math.min(1,g));
+      }
+    }
+    return {weights,examples:examples.length,featureCount,ready:true};
+  }
+
+  function predictLocalRegression(fit, history) {
+    if (!fit || !fit.ready || !history.length) return NaN;
+    const x = mlFeatures(history);
+    const normalizedLog = fit.weights.reduce((sum,w,j)=>sum+w*x[j],0);
+    const scale = Math.log1p(1000);
+    const clipped = Math.max(Math.log1p(1)/scale,Math.min(1,normalizedLog));
+    return Math.round((Math.expm1(clipped*scale))*100)/100;
+  }
+
+  function medianAbsoluteError(errors) {
+    if (!errors.length) return NaN;
+    return median(errors);
+  }
+
   function renderLocalML(vals) {
     const bandNode = $("localMLBand");
     if (!bandNode) return;
@@ -479,6 +529,43 @@
     $("localMLNote").textContent = fit.ready
       ? `Trained locally on ${fit.examples} earlier one-step examples using four prior bands, streak length, rolling band frequencies and recent multiplier summaries. The displayed score is a model score, not a calibrated chance of the next crash.`
       : "The model runs in this browser only; it does not send history to an external AI service.";
+
+    // Train a separate numeric regressor and score it on a frozen later segment.
+    const numericFit = fitLocalRegression(vals,n);
+    const numericGuess = predictLocalRegression(numericFit,vals);
+    $("localMLNumericGuess").textContent = Number.isFinite(numericGuess) ? fmt(numericGuess) : "N/A";
+
+    const regressionFit = fitLocalRegression(vals,testStart);
+    const numericErrors = [], medianBaselineErrors = [], meanBaselineErrors = [];
+    for (let i = testStart; i < n; i++) {
+      const actual = vals[i];
+      const historyBeforeRound = vals.slice(0,i);
+      const guess = predictLocalRegression(regressionFit,historyBeforeRound);
+      if (Number.isFinite(guess)) numericErrors.push(Math.abs(actual-guess));
+      const baseline = median(historyBeforeRound.slice(-Math.min(50,historyBeforeRound.length)));
+      if (Number.isFinite(baseline)) medianBaselineErrors.push(Math.abs(actual-baseline));
+    }
+    const numericMedianError = medianAbsoluteError(numericErrors);
+    const baselineMedianError = medianAbsoluteError(medianBaselineErrors);
+    const numericMAE = numericErrors.length ? numericErrors.reduce((a,b)=>a+b,0)/numericErrors.length : NaN;
+    const baselineMAE = medianBaselineErrors.length ? medianBaselineErrors.reduce((a,b)=>a+b,0)/medianBaselineErrors.length : NaN;
+    $("localMLPointMedianError").textContent = Number.isFinite(numericMedianError) ? fmt(numericMedianError) : "N/A";
+    $("localMLPointBaselineMedianError").textContent = Number.isFinite(baselineMedianError) ? fmt(baselineMedianError) : "N/A";
+    $("localMLPointMAE").textContent = Number.isFinite(numericMAE) ? fmt(numericMAE) : "N/A";
+    $("localMLPointBaselineMAE").textContent = Number.isFinite(baselineMAE) ? fmt(baselineMAE) : "N/A";
+    const medianDelta = numericMedianError - baselineMedianError;
+    $("localMLPointDelta").textContent = Number.isFinite(medianDelta)
+      ? (Math.abs(medianDelta)<0.005 ? "Tied on this holdout" : medianDelta<0 ? `${fmt(Math.abs(medianDelta))} lower error` : `${fmt(medianDelta)} higher error`)
+      : "Not enough validation data";
+    $("localMLNumericExplanation").textContent = !numericFit.ready
+      ? "Collect more completed rounds before this regression model can train."
+      : !Number.isFinite(medianDelta)
+        ? "Not enough future holdout rounds to score the numeric model."
+        : medianDelta < -0.005
+          ? "The ML regressor had lower median absolute error than the rolling-50 median on this frozen historical holdout. This small historical result does not prove future predictive ability."
+          : medianDelta > 0.005
+            ? "The ML regressor had higher median absolute error than the rolling-50 median on this frozen historical holdout. For now, the simple baseline is better."
+            : "The ML regressor and rolling-50 median were effectively tied on this frozen historical holdout; there is no demonstrated numeric edge.";
   }
 
   function renderPatternLearner(vals) {
