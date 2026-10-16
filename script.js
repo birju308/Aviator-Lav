@@ -1044,6 +1044,7 @@
     paperState.pending = null;
     paperState.lastMessage = "Paper test paused. No new results will be scored.";
     savePaperState();
+    renderPaperTracker();
   });
 
   $("paperExportButton").addEventListener("click",()=>{
