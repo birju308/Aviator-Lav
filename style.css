@@ -167,3 +167,30 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 @media(max-width:850px){.local-ml-point-test{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.local-ml-point-head{display:block}.local-ml-point-head p{margin-top:10px}.local-ml-point-test{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.local-ml-point-test{grid-template-columns:1fr}}
+
+
+/* Completed-round fairness verifier: visible utility, not a predictor */
+#experimentalPredictorLabel,
+#experimentalPredictorPanel{display:none!important}
+.verifier-panel{background:linear-gradient(145deg,#1b242f,#171e28 72%,#1e222d);border-color:#465260}
+.verifier-panel h2{font-size:1.2rem}
+.verifier-privacy{padding:10px 12px;background:#111821;border:1px solid #303c49;border-radius:9px;margin:0 0 16px}
+.verifier-form{display:grid;gap:12px}
+.verifier-form label{font-size:.82rem}
+.verifier-form input,.verifier-form textarea{margin-top:6px;width:100%;background:#111720;border:1px solid #3a4655;border-radius:9px;color:var(--text);padding:11px 12px;font:inherit;font-size:.87rem}
+.verifier-form textarea{resize:vertical;min-height:86px;line-height:1.55;overflow-wrap:anywhere}
+.verifier-form input:focus,.verifier-form textarea:focus{outline:2px solid #ad6973;outline-offset:1px}
+.verifier-seeds{margin:0}
+.verifier-actions{margin-top:0}
+.verifier-actions button:disabled{opacity:.55;cursor:wait}
+.verifier-status{margin:14px 0 12px;white-space:normal;overflow-wrap:anywhere}
+.verifier-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+.verifier-results .stat-card{min-width:0;padding:14px}
+.verifier-results .stat-card strong{font-size:clamp(.95rem,1.8vw,1.2rem);overflow-wrap:anywhere;word-break:break-word}
+.verifier-results .stat-note{display:block;overflow-wrap:anywhere;line-height:1.45}
+.verify-match{border-color:#386b55!important;color:#8be0b1!important;background:#14251f!important}
+.verify-mismatch{border-color:#78404a!important;color:#ffaaa6!important;background:#2a171d!important}
+.verify-neutral{color:#c5ced8}
+.verifier-hash-output{font: .7rem/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all;color:#aab8ca;margin:8px 0 0;user-select:text}
+@media(max-width:700px){.verifier-results{grid-template-columns:repeat(2,minmax(0,1fr))}.verifier-seeds{grid-template-columns:1fr}}
+@media(max-width:420px){.verifier-results{grid-template-columns:1fr}.verifier-actions{display:grid;grid-template-columns:1fr}.verifier-actions .button{width:100%}}
