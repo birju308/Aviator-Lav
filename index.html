@@ -96,6 +96,23 @@
         <article class="stat-card"><span class="stat-label">Most-common-band baseline</span><strong id="modelBacktestBaseline">N/A</strong><span class="stat-note">Simple reference, same test rounds</span></article>
         <article class="stat-card"><span class="stat-label">Test rounds</span><strong id="modelBacktestCount">0</strong><span class="stat-note">No future data used for each test</span></article>
       </div>
+      <div class="model-verdict">
+        <div class="model-verdict-head">
+          <div><span class="stat-label">Validation verdict</span><strong id="modelEdgeVerdict">INSUFFICIENT TEST SAMPLE</strong></div>
+          <span id="modelEdgeDelta" class="stat-note">Need more verified rounds</span>
+        </div>
+        <p id="modelEdgeExplanation" class="hint">Model candidates are compared against a simple historical baseline using only earlier rounds for each test.</p>
+      </div>
+      <div class="model-comparison-wrap">
+        <h3>Walk-forward model comparison</h3>
+        <p class="hint">Each test prediction is made from previous results only. Candidate selection on a small historical sample can overfit.</p>
+        <div class="table-wrap">
+          <table class="model-comparison-table">
+            <thead><tr><th>Model</th><th>Band hits</th><th>vs baseline</th></tr></thead>
+            <tbody id="modelComparisonBody"><tr><td colspan="3" class="empty">Need at least 20 saved rounds.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
       <div id="adaptiveModelNote" class="analysis-output">Add completed results to evaluate the experimental historical frequency model.</div>
       <p class="disclaimer"><strong>Read carefully:</strong> This is an experimental frequency model, not a validated AI forecast. The walk-forward test is a small historical diagnostic, not evidence that it can predict independent random outcomes. It does not predict an exact multiplier or crash time. Do not use it as a betting signal.</p>
     </section>
