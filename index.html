@@ -84,6 +84,30 @@
           <div><p class="kicker">SEQUENCE + STREAK FEATURES</p><h3>Pattern learner · test mode</h3><p class="muted">A transparent, history-only model that looks for repeated band sequences, transitions and streak context.</p></div>
           <span class="estimate-status" id="patternModelStatus">WAITING FOR DATA</span>
         </div>
+        <section class="local-ml-card" aria-label="Local machine learning model">
+          <div class="local-ml-head">
+            <div><p class="kicker">SUPERVISED MACHINE LEARNING</p><h3>Local ML model · logistic regression</h3><p class="muted">A real small machine-learning classifier trains in your browser on previous round sequences, streak length and rolling summaries. No external AI service or API key is used.</p></div>
+            <span class="estimate-status" id="localMLStatus">NEED MORE HISTORY</span>
+          </div>
+          <div class="local-ml-main">
+            <div><span class="stat-label">ML's highest-scoring band</span><strong id="localMLBand">N/A</strong></div>
+            <div><span class="stat-label">Model score (not true odds)</span><strong id="localMLScore">N/A</strong></div>
+            <div><span class="stat-label">Training examples</span><strong id="localMLExamples">0</strong></div>
+          </div>
+          <div class="local-ml-probs">
+            <div><div class="local-ml-prob-head"><span>1.00x–1.99x</span><strong id="localMLP0">N/A</strong></div><div class="meter"><div id="localMLBar0"></div></div></div>
+            <div><div class="local-ml-prob-head"><span>2.00x–4.99x</span><strong id="localMLP1">N/A</strong></div><div class="meter"><div id="localMLBar1"></div></div></div>
+            <div><div class="local-ml-prob-head"><span>5.00x–9.99x</span><strong id="localMLP2">N/A</strong></div><div class="meter"><div id="localMLBar2"></div></div></div>
+            <div><div class="local-ml-prob-head"><span>10.00x+</span><strong id="localMLP3">N/A</strong></div><div class="meter"><div id="localMLBar3"></div></div></div>
+          </div>
+          <div class="local-ml-test">
+            <div><span class="stat-label">Frozen chronological holdout</span><strong id="localMLHoldout">N/A</strong></div>
+            <div><span class="stat-label">Same-round baseline</span><strong id="localMLBaseline">N/A</strong></div>
+            <div><span class="stat-label">Difference</span><strong id="localMLVerdict">N/A</strong></div>
+          </div>
+          <p id="localMLExplanation" class="analysis-output">Collect at least 35 completed rounds to train and test the local machine-learning model.</p>
+          <p id="localMLNote" class="hint">Model scores are not calibrated probabilities and do not reveal the next hidden result.</p>
+        </section>
         <div class="point-guess-card">
           <div class="point-guess-top"><span class="stat-label">Numeric point estimate · rolling median</span><span class="guess-pill" id="patternGuessConfidence">WAITING FOR DATA</span></div>
           <strong id="patternGuessMultiplier">N/A</strong>
