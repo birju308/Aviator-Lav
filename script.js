@@ -1118,6 +1118,16 @@
     }catch(_){alert("Could not read this CSV. Use a CSV exported by this app.");}
     e.target.value="";
   });
+  // First visit: start a NO-STAKE paper test automatically when usable history exists.
+  // An explicit Pause or Reset message prevents auto-restarting on refresh.
+  if (!paperState.active && !paperState.pending && !paperState.lastMessage && rounds.length >= 35) {
+    paperState.active = true;
+    paperState.pending = makePaperForecast(values());
+    paperState.lastMessage = paperState.pending
+      ? "Automatic no-stake paper test started. The first estimate was locked before the next newly synced single result."
+      : "History is loaded, but the model could not produce a valid estimate yet.";
+    savePaperState();
+  }
   render();
   if(rounds.length) analyze();
 })();
