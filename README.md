@@ -40,7 +40,9 @@ The visible site focuses on completed-round statistics and a local Provably Fair
 
 ## Completed-round Provably Fair verifier
 
-The verifier accepts a revealed server seed, the first three client seeds shown in the completed-round panel, the combined SHA-512 hash, and the displayed multiplier. It concatenates the four seed strings in panel order without separators and recomputes SHA-512 using the browser's Web Crypto API. It separately derives the 52-bit prefix and multiplier with a common 97%-RTP reference formula and optionally checks the SHA-256 commitment of the revealed server seed against a pre-round commitment supplied for that same round.
+The verifier accepts a revealed server seed, the first three client seeds shown in the completed-round panel, the combined SHA-512 hash, and the displayed multiplier. With **Aviator Lab Auto Collector v0.12**, opening the game's visible completed-round fairness panel automatically captures those values from accessible page text and fills the verifier in the same Chrome profile; no manual seed copy is needed. If the game panel's DOM is inaccessible or changes layout, use the manual fields.
+
+It concatenates the four seed strings in panel order without separators and recomputes SHA-512 using the browser's Web Crypto API. It separately derives the 52-bit prefix and multiplier with a common 97%-RTP reference formula and optionally checks the SHA-256 commitment of the revealed server seed against a pre-round commitment supplied for that same round.
 
 All calculations happen locally in the browser; seed inputs are not posted to an API or saved in round history. The hash comparison is the primary integrity check. The multiplier mapping is a public reference reconstruction, not a claim to reproduce unpublished operator source code. If the reference multiplier differs while the hash matches, do not conclude manipulation from that difference alone.
 
