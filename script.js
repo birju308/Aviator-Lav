@@ -126,6 +126,117 @@
     return {top, probabilities, overall, recent, n, rn};
   }
 
+
+  function calculatePatternGuess(history) {
+    const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
+    const seq = history.map(outcomeBand);
+    const n = seq.length;
+    if (!n) return {top:0, scores:[0.25,0.25,0.25,0.25], names, support:0, motifLength:0, motifHits:0, transitionCount:0, currentStreak:0, recentSequence:[], lastBand:0, bandMedian:NaN, status:"WAITING FOR DATA"};
+
+    const counts = [1,1,1,1];
+    seq.forEach(b => counts[b]++);
+    const overallTotal = counts.reduce((a,b)=>a+b,0);
+    const overall = counts.map(c=>c/overallTotal);
+
+    const recentSeq = seq.slice(-Math.min(25,n));
+    const recentCounts = [1,1,1,1];
+    recentSeq.forEach(b=>recentCounts[b]++);
+    const recentTotal = recentCounts.reduce((a,b)=>a+b,0);
+    const recent = recentCounts.map(c=>c/recentTotal);
+
+    const lastBand = seq[n-1];
+    let currentStreak = 1;
+    for(let i=n-2;i>=0 && seq[i]===lastBand;i--) currentStreak++;
+
+    const transitionCounts = [1,1,1,1];
+    let transitionCount = 0;
+    for(let i=1;i<n;i++) {
+      if(seq[i-1]===lastBand) {
+        transitionCounts[seq[i]]++;
+        transitionCount++;
+      }
+    }
+    const transitionTotal = transitionCounts.reduce((a,b)=>a+b,0);
+    const transition = transitionCounts.map(c=>c/transitionTotal);
+
+    let motif = null;
+    for(let length=Math.min(3,n-1); length>=2; length--) {
+      const suffix=seq.slice(n-length);
+      const nextCounts=[1,1,1,1];
+      let hits=0;
+      for(let i=0;i+length<n;i++) {
+        let match=true;
+        for(let j=0;j<length;j++) if(seq[i+j]!==suffix[j]) {match=false;break;}
+        if(match) {nextCounts[seq[i+length]]++;hits++;}
+      }
+      if(hits>=2) {
+        const total=nextCounts.reduce((a,b)=>a+b,0);
+        motif={length,hits,distribution:nextCounts.map(c=>c/total),sequence:suffix};
+        break;
+      }
+    }
+
+    // Compare outcomes that followed runs of the same length (run length capped at 4).
+    const cappedRun=Math.min(4,currentStreak);
+    const runCounts=[1,1,1,1];
+    let runHits=0;
+    for(let end=0;end<n-1;end++) {
+      let length=1;
+      for(let j=end-1;j>=0 && seq[j]===seq[end];j--) length++;
+      if(Math.min(4,length)===cappedRun) {
+        runCounts[seq[end+1]]++;
+        runHits++;
+      }
+    }
+    const runTotal=runCounts.reduce((a,b)=>a+b,0);
+    const runDist=runCounts.map(c=>c/runTotal);
+
+    // Evidence-weighted blend. Unsupported conditional features receive no weight.
+    const components=[{w:0.28,p:overall},{w:0.22,p:recent}];
+    if(transitionCount>=3) components.push({w:0.22,p:transition});
+    if(motif) components.push({w:0.18,p:motif.distribution});
+    if(runHits>=3) components.push({w:0.10,p:runDist});
+    const weightSum=components.reduce((sum,c)=>sum+c.w,0);
+    const scores=[0,0,0,0];
+    for(const c of components) for(let b=0;b<4;b++) scores[b]+=c.w*c.p[b]/weightSum;
+    let top=0;
+    for(let b=1;b<4;b++) if(scores[b]>scores[top]) top=b;
+    const valuesInBand=history.filter(v=>outcomeBand(v)===top);
+    const bandMedian=valuesInBand.length?median(valuesInBand):NaN;
+    const support=(transitionCount>=3?transitionCount:0)+(motif?motif.hits:0)+(runHits>=3?runHits:0);
+    return {
+      top,scores,names,support,motifLength:motif?.length||0,motifHits:motif?.hits||0,
+      transitionCount,currentStreak,recentSequence:seq.slice(-4).map(b=>names[b]),
+      lastBand,bandMedian,status:n<20?"BUILDING SAMPLE":n<100?"EARLY SAMPLE":"PATTERN TEST",
+      runHits,cappedRun
+    };
+  }
+
+  function renderPatternLearner(vals) {
+    const model=calculatePatternGuess(vals);
+    $("patternModelStatus").textContent=model.status;
+    $("patternGuessBand").textContent=vals.length?model.names[model.top]:"N/A";
+    $("patternGuessMedian").textContent=Number.isFinite(model.bandMedian)?fmt(model.bandMedian):"N/A";
+    $("patternGuessScore").textContent=vals.length?`${(model.scores[model.top]*100).toFixed(1)}%`:"N/A";
+    $("patternMotifHits").textContent=model.motifHits?String(model.motifHits):"0";
+    $("patternMotifNote").textContent=model.motifHits?`matching ${model.motifLength}-band motifs`:"No repeated motif with 2+ matches";
+    $("patternCurrentStreak").textContent=vals.length?`${model.currentStreak} × ${model.names[model.lastBand]}`:"N/A";
+    $("patternRecentSequence").textContent=model.recentSequence.length?model.recentSequence.join(" → "):"N/A";
+    $("patternTransitionEvidence").textContent=vals.length
+      ?`${model.transitionCount} prior transition(s) after ${model.names[model.lastBand]}`
+      :"N/A";
+    let message=vals.length
+      ?`Test-mode guess: ${model.names[model.top]} is the highest-scoring historical band (${(model.scores[model.top]*100).toFixed(1)} relative score). Its within-band historical median is ${fmt(model.bandMedian)}. `
+      :"Add completed rounds to calculate pattern features. ";
+    if(vals.length<50) message+="There are too few results to assess conditional patterns reliably. ";
+    if(model.motifHits>=2) message+=`The latest ${model.motifLength}-band motif has ${model.motifHits} historical match(es), whose following bands help inform the score. `;
+    else message+="No repeated 2- or 3-band motif has enough matches to add weight. ";
+    if(model.transitionCount>=3) message+=`The current band has ${model.transitionCount} observed historical follow-up(s). `;
+    else message+="The current-band transition history is sparse. ";
+    message+="This is a pattern-based experiment, not a validated AI or a reliable forecast of an independent random crash.";
+    $("patternExplanation").textContent=message;
+  }
+
   function renderAdaptiveModel(vals) {
     const n = vals.length;
     const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
@@ -149,7 +260,8 @@
       "Smoothed history blend",
       "Recent 25-round majority",
       "Last-band transition",
-      "Decay-weighted frequency"
+      "Decay-weighted frequency",
+      "Pattern sequence learner"
     ];
     const chooseTop = counts => {
       let top = 0;
@@ -191,7 +303,8 @@
       calculateBandModel(train).top,
       recentMajorityOf(train),
       transitionOf(train),
-      decayOf(train)
+      decayOf(train),
+      calculatePatternGuess(train).top
     ];
     const walkForward = [];
     if (n >= 20) {
@@ -317,6 +430,7 @@
     $("medianValue").textContent = fmt(median(vals));
     $("belowTwoValue").textContent = n ? pct(vals.filter(v=>v<2).length,n) : "N/A";
     renderPatternStats(vals);
+    renderPatternLearner(vals);
     renderAdaptiveModel(vals);
     const autoCount = rounds.filter(r => r && r.extensionId).length;
     const purgeButton = $("removeSyncedButton");
