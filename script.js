@@ -224,6 +224,134 @@
   });
 
 
+  // Completed-round Provably Fair verifier. All hashing happens locally via Web Crypto.
+  async function digestHex(algorithm, value) {
+    if (!window.crypto || !window.crypto.subtle) {
+      throw new Error("Secure Web Crypto is unavailable. Open this tool over HTTPS in a modern browser.");
+    }
+    const bytes = await window.crypto.subtle.digest(algorithm, new TextEncoder().encode(value));
+    return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  function multiplierFromHash(hash) {
+    const prefix = hash.slice(0, 13).toLowerCase();
+    const h = BigInt("0x" + prefix);
+    const e = 1n << 52n;
+    if (h >= e) throw new Error("The 13-character hash value is outside the expected 52-bit range.");
+    let cents = (97n * e) / (e - h);
+    if (cents < 100n) cents = 100n;
+    const multiplierText = (cents / 100n).toString() + "." + (cents % 100n).toString().padStart(2, "0");
+    return {prefix, decimal:h.toString(), cents, multiplierText};
+  }
+
+  function setVerifierStatus(id, value, kind) {
+    const node = $(id);
+    node.textContent = value;
+    node.classList.remove("verify-match", "verify-mismatch", "verify-neutral");
+    node.classList.add(kind || "verify-neutral");
+  }
+
+  function resetVerifierOutput() {
+    setVerifierStatus("pfOverallStatus", "Enter the exact seeds, combined hash and finished multiplier, then verify.", "verify-neutral");
+    setVerifierStatus("pfCalculatedHashStatus", "Not checked", "verify-neutral");
+    $("pfCalculatedHashNote").textContent = "Seed concatenation in panel order, with no separators";
+    $("pfHexPrefix").textContent = "N/A";
+    $("pfHexDecimal").textContent = "N/A";
+    $("pfHashMultiplier").textContent = "N/A";
+    $("pfSeedMultiplier").textContent = "N/A";
+    setVerifierStatus("pfCommitmentStatus", "Not provided", "verify-neutral");
+    $("pfCommitmentNote").textContent = "Optional SHA-256 cross-check";
+  }
+
+  async function verifyCompletedRound(event) {
+    event.preventDefault();
+    const button = $("pfVerifyButton");
+    button.disabled = true;
+    button.textContent = "Verifying locally…";
+    resetVerifierOutput();
+    try {
+      const serverSeed = $("pfServerSeed").value.trim();
+      const clientSeeds = [
+        $("pfClientSeed1").value.trim(),
+        $("pfClientSeed2").value.trim(),
+        $("pfClientSeed3").value.trim()
+      ];
+      const shownHash = $("pfDisplayedHash").value.replace(/\s+/g, "").toLowerCase();
+      const displayedMultiplier = Number($("pfDisplayedMultiplier").value);
+      const commitment = $("pfServerCommitment").value.replace(/\s+/g, "").toLowerCase();
+
+      if (!serverSeed || clientSeeds.some(seed => !seed)) {
+        throw new Error("Enter the complete server seed and all three client seeds exactly as shown.");
+      }
+      if (!/^[0-9a-f]{128}$/.test(shownHash)) {
+        throw new Error("The combined SHA-512 hash must be exactly 128 hexadecimal characters.");
+      }
+      if (!Number.isFinite(displayedMultiplier) || displayedMultiplier < 1 || displayedMultiplier > 1000000) {
+        throw new Error("Enter the finished multiplier shown by the game, such as 2.78.");
+      }
+      if (commitment && !/^[0-9a-f]{64}$/.test(commitment)) {
+        throw new Error("The optional server-seed SHA-256 commitment must be 64 hexadecimal characters.");
+      }
+
+      // SPRIBE's guide illustrates concatenation without separators in panel order.
+      const concatenatedSeeds = serverSeed + clientSeeds.join("");
+      const computedHash = await digestHex("SHA-512", concatenatedSeeds);
+      const hashMatches = computedHash === shownHash;
+      const fromShownHash = multiplierFromHash(shownHash);
+      const fromComputedHash = multiplierFromHash(computedHash);
+      const expectedCents = BigInt(Math.round(displayedMultiplier * 100));
+      const displayedResultMatches = fromShownHash.cents === expectedCents;
+      const seedDerivedResultMatches = fromComputedHash.cents === expectedCents;
+
+      setVerifierStatus(
+        "pfCalculatedHashStatus",
+        hashMatches ? "EXACT MATCH" : "MISMATCH",
+        hashMatches ? "verify-match" : "verify-mismatch"
+      );
+      $("pfCalculatedHashNote").textContent = hashMatches
+        ? "Recalculated SHA-512 equals the hash copied from the finished round."
+        : "The values do not reproduce the shown hash. Recheck every seed character and panel order.";
+      $("pfHexPrefix").textContent = fromShownHash.prefix;
+      $("pfHexDecimal").textContent = fromShownHash.decimal;
+      $("pfHashMultiplier").textContent = fromShownHash.multiplierText + "x" + (displayedResultMatches ? " · MATCH" : " · DIFFERS");
+      $("pfSeedMultiplier").textContent = fromComputedHash.multiplierText + "x" + (seedDerivedResultMatches ? " · MATCH" : " · DIFFERS");
+
+      let commitmentMatches = null;
+      if (commitment) {
+        const computedCommitment = await digestHex("SHA-256", serverSeed);
+        commitmentMatches = computedCommitment === commitment;
+        setVerifierStatus(
+          "pfCommitmentStatus",
+          commitmentMatches ? "MATCH" : "MISMATCH",
+          commitmentMatches ? "verify-match" : "verify-mismatch"
+        );
+        $("pfCommitmentNote").textContent = commitmentMatches
+          ? "SHA-256 of this revealed server seed matches the supplied commitment."
+          : "The server seed does not match the supplied commitment. Confirm that it belongs to this same round.";
+      } else {
+        setVerifierStatus("pfCommitmentStatus", "Not provided", "verify-neutral");
+        $("pfCommitmentNote").textContent = "Optional: compare against the commitment saved before this exact round.";
+      }
+
+      if (!hashMatches) {
+        setVerifierStatus("pfOverallStatus", "NOT VERIFIED: the entered seeds do not reproduce the displayed SHA-512 hash. Check the exact seed strings and their order. The multiplier calculation below is only a reference check, not evidence the round is verified.", "verify-mismatch");
+      } else if (commitmentMatches === false) {
+        setVerifierStatus("pfOverallStatus", "WARNING: the combined SHA-512 matches, but the server seed does not match the supplied pre-round SHA-256 commitment. Confirm the commitment belongs to this same round before drawing conclusions.", "verify-mismatch");
+      } else if (!displayedResultMatches) {
+        setVerifierStatus("pfOverallStatus", "The seed chain reproduces the displayed SHA-512 hash, but the displayed multiplier differs from the common 97% reference formula. This alone does not prove manipulation; the game build/formula or entered value may differ.", "verify-neutral");
+      } else if (commitmentMatches === true) {
+        setVerifierStatus("pfOverallStatus", "MATCH: the seed chain reproduces the combined SHA-512 hash, the result matches the 97% reference calculation, and the supplied server-seed commitment also matches. This verifies only this completed round.", "verify-match");
+      } else {
+        setVerifierStatus("pfOverallStatus", "MATCH: the seed chain reproduces the combined SHA-512 hash and the displayed result matches the common 97% reference calculation. This verifies only this completed round; no next-round prediction is made.", "verify-match");
+      }
+    } catch (error) {
+      setVerifierStatus("pfOverallStatus", error && error.message ? error.message : "Could not verify the entered values.", "verify-mismatch");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Verify finished round";
+    }
+  }
+
   function outcomeBand(value) {
     if (value < 2) return 0;
     if (value < 5) return 1;
@@ -858,6 +986,11 @@
     error.hidden=true;rounds.push({multiplier:val,timestamp:new Date().toISOString()});saveHistory();render();input.value="";input.focus();resetAnalysis("Round added. Run analysis to refresh the historical reference.");
   });
   $("analyzeButton").addEventListener("click",analyze);
+  $("pfVerifierForm").addEventListener("submit", verifyCompletedRound);
+  $("pfClearButton").addEventListener("click", () => {
+    $("pfVerifierForm").reset();
+    resetVerifierOutput();
+  });
   $("paperStartButton").addEventListener("click",()=>{
     paperState.active = true;
     paperState.pending = makePaperForecast(values());
