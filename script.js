@@ -87,7 +87,7 @@
   window.addEventListener("message", event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const message = event.data;
-    if (message && ["aviator-lab-extension-v05", "aviator-lab-extension-v06", "aviator-lab-extension-v07", "aviator-lab-extension-v08", "aviator-lab-extension-v09"].includes(message.source) && message.type === "AUTO_ROUND_SYNC") {
+    if (message && ["aviator-lab-extension-v05", "aviator-lab-extension-v06", "aviator-lab-extension-v07", "aviator-lab-extension-v08", "aviator-lab-extension-v09", "aviator-lab-extension-v10"].includes(message.source) && message.type === "AUTO_ROUND_SYNC") {
       receiveAutoSync(message);
       window.postMessage({
         source: "aviator-lab-page-v06",
