@@ -44,3 +44,10 @@ Keep collection data clean: multiple collector extension versions can cause dupl
 ## Experimental candidate model comparison
 
 The predictor compares a smoothed full-history blend, a recent-25 majority, a last-band transition candidate, a decay-weighted frequency candidate, and a most-common-band baseline using chronological walk-forward tests. For each test, the predictor uses only earlier observations. The dashboard reports a separate verdict: small samples are marked insufficient; a candidate performance difference is unconfirmed and can be due to trying multiple methods against the same history. Nothing here predicts an exact future crash multiplier/time or supplies betting advice.
+
+
+## Untouched holdout validation
+
+The experimental predictor now separates chronological development results from a final, later holdout. It chooses one candidate using only the development window, then evaluates that selected candidate against the baseline on the reserved holdout. Small holdouts show an insufficient-sample verdict. Even a positive holdout result is exploratory—not proof of future accuracy—because random outcomes and small samples can fluctuate.
+
+The model predicts multiplier *bands*, not exact multiplier/time.
