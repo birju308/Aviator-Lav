@@ -5,6 +5,10 @@
   const $ = (id) => document.getElementById(id);
   const PAPER_KEY = "aviatorAnalyzer.paperTracker.v2";
   let paperState = loadPaperState();
+  // Legacy numeric forecast logging is paused; visible site is historical analysis + completed-round verification.
+  paperState.active = false;
+  paperState.pending = null;
+  savePaperState();
 
   function loadPaperState() {
     try {
@@ -200,7 +204,6 @@
       saveHistory();
       render();
       analyze();
-      renderPaperTracker();
     }
     const frameCount = Array.isArray(message.frames) ? message.frames.length : 0;
     const latest = message.lastCollectedAt ? new Date(message.lastCollectedAt).toLocaleTimeString() : "not yet";
@@ -919,15 +922,11 @@
 
   function render() {
     const vals = values(), n = vals.length;
-    renderPaperTracker();
     $("totalRounds").textContent = n.toLocaleString();
     $("averageValue").textContent = n ? fmt(vals.reduce((a,b)=>a+b,0)/n) : "N/A";
     $("medianValue").textContent = fmt(median(vals));
     $("belowTwoValue").textContent = n ? pct(vals.filter(v=>v<2).length,n) : "N/A";
     renderPatternStats(vals);
-    renderPatternLearner(vals);
-    renderAdaptiveModel(vals);
-    renderLocalML(vals);
     const autoCount = rounds.filter(r => r && r.extensionId).length;
     const purgeButton = $("removeSyncedButton");
     if (purgeButton) purgeButton.textContent = `Remove auto-synced results (${autoCount})`;
@@ -964,7 +963,6 @@
       $("estimateValue").innerHTML='--<small>x</small>';
       $("rangeValue").textContent="--";
       $("analysisOutput").textContent="Enter completed multipliers first. No estimate can be calculated without data.";
-      renderAdaptiveModel([]);
       return;
     }
     const med=median(vals), low=quantile(vals,.25), high=quantile(vals,.75);
@@ -1000,20 +998,17 @@
       ? "Paper test started. This guess is locked for the next single newly synced result."
       : "Cannot lock a guess until there is usable history.";
     savePaperState();
-    renderPaperTracker();
   });
   $("paperPauseButton").addEventListener("click",()=>{
     paperState.active = false;
     paperState.pending = null;
     paperState.lastMessage = "Paper test paused. No new results will be scored.";
     savePaperState();
-    renderPaperTracker();
   });
   $("paperResetButton").addEventListener("click",()=>{
     if(!confirm("Reset only the paper-test guesses and scores? Your round history will not be deleted.")) return;
     paperState = {active:false,pending:null,results:[],skipped:0,lastMessage:"Paper-test log reset. Start again to record fresh guesses."};
     savePaperState();
-    renderPaperTracker();
   });
 
   $("removeSyncedButton").addEventListener("click",()=>{
@@ -1061,6 +1056,5 @@
     e.target.value="";
   });
   render();
-  renderPaperTracker();
   if(rounds.length) analyze();
 })();
