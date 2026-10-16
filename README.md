@@ -34,49 +34,18 @@ The page includes an experimental frequency explorer that refreshes when the sav
 The **Remove auto-synced results (N)** button removes only records tagged as Chrome-extension syncs, while keeping manually entered and CSV-imported records. Remove older duplicate collector extensions from Chrome and keep only one version enabled before continuing automatic collection.
 
 
-## Experimental crash predictor
+## Current visible features
 
-The UI ranks four multiplier bands using a smoothed blend of full-sample frequency and the latest 50 saved results. It also runs a walk-forward diagnostic: each historical test uses only earlier results, then compares the selected band with a simple most-common-band baseline. With small samples the test is noisy and should not be interpreted as predictive skill. These are historical frequency summaries, not calibrated future odds or an exact crash prediction.
+The visible site focuses on completed-round statistics and a local Provably Fair verifier. Numeric next-round guesses and machine-learning prediction cards are hidden, and the old paper-prediction logging is paused, because previous tests did not establish predictive edge over simple historical baselines.
 
-Keep collection data clean: multiple collector extension versions can cause duplicates. Remove old collector versions and use the website's auto-synced-results cleanup button if necessary.
+## Completed-round Provably Fair verifier
 
+The verifier accepts a revealed server seed, the first three client seeds shown in the completed-round panel, the combined SHA-512 hash, and the displayed multiplier. It concatenates the four seed strings in panel order without separators and recomputes SHA-512 using the browser's Web Crypto API. It separately derives the 52-bit prefix and multiplier with a common 97%-RTP reference formula and optionally checks the SHA-256 commitment of the revealed server seed against a pre-round commitment supplied for that same round.
 
-## Experimental candidate model comparison
+All calculations happen locally in the browser; seed inputs are not posted to an API or saved in round history. The hash comparison is the primary integrity check. The multiplier mapping is a public reference reconstruction, not a claim to reproduce unpublished operator source code. If the reference multiplier differs while the hash matches, do not conclude manipulation from that difference alone.
 
-The predictor compares a smoothed full-history blend, a recent-25 majority, a last-band transition candidate, a decay-weighted frequency candidate, and a most-common-band baseline using chronological walk-forward tests. For each test, the predictor uses only earlier observations. The dashboard reports a separate verdict: small samples are marked insufficient; a candidate performance difference is unconfirmed and can be due to trying multiple methods against the same history. Nothing here predicts an exact future crash multiplier/time or supplies betting advice.
+Official background: [SPRIBE Provably Fair](https://spribe.co/provably-fair).
 
+## Limitations
 
-## Untouched holdout validation
-
-The experimental predictor now separates chronological development results from a final, later holdout. It chooses one candidate using only the development window, then evaluates that selected candidate against the baseline on the reserved holdout. Small holdouts show an insufficient-sample verdict. Even a positive holdout result is exploratory—not proof of future accuracy—because random outcomes and small samples can fluctuate.
-
-The model predicts multiplier *bands*, not exact multiplier/time.
-
-
-## Pattern learner (experimental test mode)
-
-The predictor includes an explainable sequence model that blends full-sample and recent band frequencies with observed next-band transitions, repeated 2–3 band motifs, and matching run-length contexts when enough past examples exist. It displays a top-ranked outcome band, the historical median among saved values in that band, the current band streak, recent band sequence, and the amount of matching historical evidence. A separate chronological walk-forward evaluation compares this candidate with simple baselines and reserves a later holdout.
-
-All displayed percentages are model-relative scores, not calibrated real-world probabilities. This is a test-mode pattern model and not a validated predictor for independently randomized rounds; it does not reveal the hidden result or estimate a reliable exact crash time/multiplier.
-
-
-## Single-number pattern guess (experimental)
-
-The pattern learner displays a test-mode numeric point guess (e.g. 1.49x or 2.00x) for usability. It prefers the median multiplier observed after matching historical 2–3 band sequences when there are at least three examples; otherwise it falls back to the recent matching-band median or the overall selected-band median. The UI shows which evidence source was used and labels confidence low. This is a historical analogy for test mode, not a calibrated probability, not a forecast derived from hidden round inputs, and not a reliable exact crash prediction.
-
-
-## Live paper-test accuracy tracker
-
-The site now has a no-stake tracker. Click **Start paper test** to lock a numeric guess based on currently saved history for the next newly synced round. If exactly one new round arrives, it records the actual, band hit/miss, absolute numeric error, and then locks a fresh forecast. If several results arrive in one batch, it does not guess their alignment; it skips scoring that batch. The tracker is local to the browser and can be paused or reset independently from round history.
-
-This evaluates the forecast, it does not improve or guarantee it. Do not use an unvalidated guess for real-money betting. A random crash outcome cannot be reliably inferred from historical patterns alone.
-
-
-## Local supervised ML experiment
-
-The page now includes a small multinomial logistic-regression classifier trained in the browser on earlier multiplier-band sequences, streak length, rolling band frequencies and recent multiplier summaries. Its weights are learned from past one-step examples; it is not a hosted LLM and no results are sent to an external AI service. The classifier shows a frozen chronological holdout score against a simple same-round baseline. Scores are exploratory and uncalibrated. If the classifier does not beat the baseline on future unseen rounds, do not treat it as useful predictive signal. The exact upcoming crash point cannot be reliably inferred from previous outcomes alone.
-
-
-## Numeric supervised ML experiment
-
-Alongside the logistic-regression band classifier, the page includes a small log-scaled numeric regression model trained locally in the browser from previous bands, streak length, rolling band frequencies and multiplier summaries. It outputs an experimental point estimate. A frozen chronological holdout compares both its median and mean absolute error against a rolling-50 median baseline on the same later rounds. The model is useful only as an experiment: if its holdout errors are not lower than the baseline, the simple median should be preferred. Neither model can see the hidden result or reliably predict an exact crash multiplier.
+The optional Chrome extension only reads visible result-history DOM content and may miss inaccessible frames or canvas-only results. Historical statistics describe past data only. A completed-round verifier checks disclosed inputs after a round finishes; neither the history analyzer nor the verifier predicts the next hidden outcome. Do not use this site as a betting signal.
