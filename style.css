@@ -132,3 +132,23 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 #paperLastOutcome{margin:12px 0 2px;font-size:.83rem;line-height:1.6}
 @media(max-width:700px){.paper-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.paper-tracker-head{display:block}.paper-tracker-head .estimate-status{display:inline-block;margin-top:8px}}
 @media(max-width:420px){.paper-metrics{grid-template-columns:1fr}.paper-controls{display:grid;grid-template-columns:1fr}}
+
+
+/* Local supervised ML experiment and frozen chronological test */
+.local-ml-card{margin:14px 0 18px;padding:16px;background:#101821;border:1px solid #4b4b5a;border-radius:13px}
+.local-ml-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px}
+.local-ml-head h3{margin:0 0 5px;font-size:1.05rem}
+.local-ml-head .muted{margin:0;max-width:740px;font-size:.83rem;line-height:1.55}
+.local-ml-main{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:12px 0}
+.local-ml-main>div,.local-ml-test>div{padding:12px;background:#171f2a;border:1px solid #303c49;border-radius:9px;min-width:0}
+.local-ml-main strong{display:block;margin-top:5px;font-size:clamp(1rem,2.5vw,1.35rem);overflow-wrap:anywhere}
+.local-ml-probs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}
+.local-ml-prob-head{display:flex;justify-content:space-between;gap:8px;font-size:.79rem;margin-bottom:6px}
+.local-ml-prob-head strong{color:var(--accent2)}
+.local-ml-probs .meter div{background:#b7a3ff}
+.local-ml-test{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.local-ml-test strong{display:block;margin-top:5px;font-size:clamp(.95rem,2vw,1.2rem);overflow-wrap:anywhere}
+#localMLExplanation{margin:12px 0}
+#localMLNote{overflow-wrap:anywhere}
+@media(max-width:700px){.local-ml-head{display:block}.local-ml-head .estimate-status{display:inline-block;margin-top:9px}.local-ml-main{grid-template-columns:1fr 1fr}.local-ml-main>div:first-child{grid-column:1/-1}.local-ml-test{grid-template-columns:1fr}}
+@media(max-width:420px){.local-ml-probs{grid-template-columns:1fr}.local-ml-main{grid-template-columns:1fr}.local-ml-main>div:first-child{grid-column:auto}}
