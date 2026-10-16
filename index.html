@@ -85,13 +85,13 @@
           <span class="estimate-status" id="patternModelStatus">WAITING FOR DATA</span>
         </div>
         <div class="point-guess-card">
-          <div class="point-guess-top"><span class="stat-label">AI-style point guess · test mode</span><span class="guess-pill" id="patternGuessConfidence">WAITING FOR DATA</span></div>
+          <div class="point-guess-top"><span class="stat-label">Numeric point estimate · rolling median</span><span class="guess-pill" id="patternGuessConfidence">WAITING FOR DATA</span></div>
           <strong id="patternGuessMultiplier">N/A</strong>
           <p id="patternNumericReasoning">Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.</p>
         </div>
         <section class="paper-tracker" aria-label="Paper prediction tracking">
           <div class="paper-tracker-head">
-            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">Lock a guess before the next observed round. Once one new result syncs, the tracker scores it and locks the next guess. Multi-round batches are skipped to avoid mis-scoring.</p></div>
+            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">Lock a rolling-median estimate before the next observed round. The paper log compares it with the full-history median on the same future results. Multi-round batches are skipped to avoid mis-scoring.</p></div>
             <span class="estimate-status" id="paperStatus">OFF</span>
           </div>
           <div class="paper-next">
@@ -103,6 +103,7 @@
             <article class="stat-card"><span class="stat-label">Band accuracy</span><strong id="paperBandRate">N/A</strong><span class="stat-note">Same multiplier band</span></article>
             <article class="stat-card"><span class="stat-label">Median absolute error</span><strong id="paperMedianError">N/A</strong><span class="stat-note">Point-guess error</span></article>
             <article class="stat-card"><span class="stat-label">Within ±0.25x</span><strong id="paperNearRate">N/A</strong><span class="stat-note">Point-guess tolerance</span></article>
+            <article class="stat-card"><span class="stat-label">All-history median error</span><strong id="paperBaselineError">N/A</strong><span id="paperBaselineNote" class="stat-note">Starts with new test rounds</span></article>
           </div>
           <div class="paper-controls">
             <button id="paperStartButton" class="button primary" type="button">Start paper test</button>
