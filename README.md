@@ -23,3 +23,12 @@ The current imported history is retained. Automatically collected items have sta
 ## Limitations
 
 The extension reads visible page DOM only. It may miss inaccessible cross-origin frames, canvas-only results, or layout changes. Verify data quality and do not treat statistical summaries as betting advice. The next crash time/multiplier cannot be reliably predicted from prior rounds; the displayed median is a historical reference, not a forecast.
+
+
+## Adaptive historical model
+
+The page includes an experimental frequency explorer that refreshes when the saved history changes. It smooths the full-sample frequency with the last 50 saved entries and shows four outcome bands. This is a descriptive baseline—not a validated AI predictor—and should not be treated as a forecast of the next independent crash outcome.
+
+## Cleaning collector duplicates
+
+The **Remove auto-synced results (N)** button removes only records tagged as Chrome-extension syncs, while keeping manually entered and CSV-imported records. Remove older duplicate collector extensions from Chrome and keep only one version enabled before continuing automatic collection.
