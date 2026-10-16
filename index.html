@@ -50,7 +50,7 @@
         <div class="entry-row"><div class="input-wrap"><input id="multiplierInput" type="text" inputmode="decimal" placeholder="Example: 1.45x" autocomplete="off" required><span class="input-suffix">x</span></div><button class="button primary" type="submit">＋ Add round</button></div>
         <p id="inputError" class="error" role="alert" hidden></p>
       </form>
-      <div class="actions"><button id="exportButton" class="button secondary" type="button">↓ Export CSV</button><label class="button secondary import-label" for="importFile">↑ Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label><button id="clearButton" class="button quiet-danger" type="button">Clear history</button></div>
+      <div class="actions"><button id="exportButton" class="button secondary" type="button">↓ Export CSV</button><label class="button secondary import-label" for="importFile">↑ Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label><button id="removeSyncedButton" class="button quiet-danger" type="button">Remove auto-synced results</button><button id="clearButton" class="button quiet-danger" type="button">Clear history</button></div>
       <p id="saveStatus" class="hint status" aria-live="polite">Saved in this browser on this device.</p>
       <p id="extensionSyncStatus" class="hint status" aria-live="polite">Chrome extension auto-sync: waiting for the Aviator Lab extension in this browser. Keep Chrome and the game tab open for collection.</p>
     </section>
@@ -76,15 +76,15 @@
     <div class="section-label"><span class="step">05</span><span>Experimental crash estimate</span></div>
     <section class="panel estimate-panel">
       <div class="estimate-head">
-        <div><p class="kicker">HISTORICAL BASELINE</p><h2>Next-round reference</h2><p class="muted">A historical benchmark—not a forecast of the next crash.</p></div>
+        <div><p class="kicker">HISTORICAL BASELINE</p><h2>Historical sample summary</h2><p class="muted">Describes past results only; it does not forecast the next crash.</p></div>
         <span class="estimate-status" id="modelStatus">WAITING FOR DATA</span>
       </div>
       <div class="estimate-value-wrap">
-        <div><span class="muted small-label">Median-based reference</span><div id="estimateValue" class="estimate-value">--<small>x</small></div></div>
+        <div><span class="muted small-label">Sample median (past rounds only)</span><div id="estimateValue" class="estimate-value">--<small>x</small></div></div>
         <div class="range-box"><span>Middle 50% of saved results</span><strong id="rangeValue">--</strong></div>
       </div>
       <div class="meter"><div id="dataMeter"></div></div>
-      <div class="meter-caption"><span id="dataMeterLabel">0 rounds recorded</span><span>100 rounds = initial sample target</span></div>
+      <div class="meter-caption"><span id="dataMeterLabel">0 rounds recorded</span><span>100 rounds = minimum descriptive sample target</span></div>
       <div id="analysisOutput" class="analysis-output">Add completed results or connect the local extension to calculate a historical reference.</div>
       <button id="analyzeButton" class="button primary analyze-button" type="button">Run analysis</button>
       <p class="disclaimer"><strong>Important:</strong> This estimate is based on past results only. If rounds are independently randomized, previous multipliers do not reveal the next crash point. Do not treat this as betting advice.</p>
