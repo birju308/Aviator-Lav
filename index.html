@@ -89,6 +89,29 @@
           <strong id="patternGuessMultiplier">N/A</strong>
           <p id="patternNumericReasoning">Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.</p>
         </div>
+        <section class="paper-tracker" aria-label="Paper prediction tracking">
+          <div class="paper-tracker-head">
+            <div><p class="kicker">NO-STAKE VALIDATION</p><h3>Live paper-test tracker</h3><p class="muted">Lock a guess before the next observed round. Once one new result syncs, the tracker scores it and locks the next guess. Multi-round batches are skipped to avoid mis-scoring.</p></div>
+            <span class="estimate-status" id="paperStatus">OFF</span>
+          </div>
+          <div class="paper-next">
+            <div><span class="stat-label">Guess locked for next observed round</span><strong id="paperNextGuess">Not started</strong></div>
+            <p id="paperNextReason">Start paper test to begin recording guesses before new results arrive.</p>
+          </div>
+          <div class="pattern-learner-grid paper-metrics">
+            <article class="stat-card"><span class="stat-label">Scored rounds</span><strong id="paperScoredCount">0</strong><span class="stat-note">Only single-result syncs</span></article>
+            <article class="stat-card"><span class="stat-label">Band accuracy</span><strong id="paperBandRate">N/A</strong><span class="stat-note">Same multiplier band</span></article>
+            <article class="stat-card"><span class="stat-label">Median absolute error</span><strong id="paperMedianError">N/A</strong><span class="stat-note">Point-guess error</span></article>
+            <article class="stat-card"><span class="stat-label">Within ±0.25x</span><strong id="paperNearRate">N/A</strong><span class="stat-note">Point-guess tolerance</span></article>
+          </div>
+          <div class="paper-controls">
+            <button id="paperStartButton" class="button primary" type="button">Start paper test</button>
+            <button id="paperPauseButton" class="button secondary" type="button">Pause</button>
+            <button id="paperResetButton" class="button quiet-danger" type="button">Reset paper log</button>
+          </div>
+          <p id="paperLastOutcome" class="analysis-output">No paper-test rounds scored yet.</p>
+          <p class="disclaimer"><strong>Test only:</strong> paper-test accuracy is descriptive and may be noisy. The tracker does not place bets or make the game predictable. Keep it in no-stake testing; do not use an unvalidated guess to risk money.</p>
+        </section>
         <div class="pattern-learner-grid">
           <article class="stat-card"><span class="stat-label">Next-round test guess band</span><strong id="patternGuessBand">N/A</strong><span class="stat-note">Highest model score, not certainty</span></article>
           <article class="stat-card"><span class="stat-label">Historical midpoint in band</span><strong id="patternGuessMedian">N/A</strong><span class="stat-note">Past median, not exact crash point</span></article>
