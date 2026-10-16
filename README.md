@@ -70,3 +70,8 @@ The pattern learner displays a test-mode numeric point guess (e.g. 1.49x or 2.00
 The site now has a no-stake tracker. Click **Start paper test** to lock a numeric guess based on currently saved history for the next newly synced round. If exactly one new round arrives, it records the actual, band hit/miss, absolute numeric error, and then locks a fresh forecast. If several results arrive in one batch, it does not guess their alignment; it skips scoring that batch. The tracker is local to the browser and can be paused or reset independently from round history.
 
 This evaluates the forecast, it does not improve or guarantee it. Do not use an unvalidated guess for real-money betting. A random crash outcome cannot be reliably inferred from historical patterns alone.
+
+
+## Local supervised ML experiment
+
+The page now includes a small multinomial logistic-regression classifier trained in the browser on earlier multiplier-band sequences, streak length, rolling band frequencies and recent multiplier summaries. Its weights are learned from past one-step examples; it is not a hosted LLM and no results are sent to an external AI service. The classifier shows a frozen chronological holdout score against a simple same-round baseline. Scores are exploratory and uncalibrated. If the classifier does not beat the baseline on future unseen rounds, do not treat it as useful predictive signal. The exact upcoming crash point cannot be reliably inferred from previous outcomes alone.
