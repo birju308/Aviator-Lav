@@ -3,12 +3,8 @@
   const STORAGE_KEY = "aviatorAnalyzer.rounds.v2";
   const MAX_ROUNDS = 5000;
   const $ = (id) => document.getElementById(id);
-  const PAPER_KEY = "aviatorAnalyzer.paperTracker.v2";
+  const PAPER_KEY = "aviatorAnalyzer.paperTracker.v3";
   let paperState = loadPaperState();
-  // Legacy numeric forecast logging is paused; visible site is historical analysis + completed-round verification.
-  paperState.active = false;
-  paperState.pending = null;
-  savePaperState();
 
   function loadPaperState() {
     try {
@@ -35,7 +31,7 @@
     if (!Number.isFinite(model.numericGuess)) return null;
     return {
       point: model.numericGuess,
-      baselinePoint: median(history),
+      baselinePoint: median(history.slice(-Math.min(50, history.length))),
       band: model.top,
       bandLabel: model.names[model.top],
       modelScore: model.scores[model.top],
@@ -73,9 +69,9 @@
     if (results.length) {
       const last = results[results.length-1];
       const baselineText = Number.isFinite(last.baselineAbsError)
-        ? `; all-history median baseline ${fmt(last.baselineGuess)}, error ${fmt(last.baselineAbsError)}`
+        ? `; rolling-50 median baseline ${fmt(last.baselineGuess)}, error ${fmt(last.baselineAbsError)}`
         : "";
-      $("paperLastOutcome").textContent = `Last scored result: rolling-median guess ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)}${baselineText} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
+      $("paperLastOutcome").textContent = `Last scored result: model estimate ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)}${baselineText} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
     } else {
       $("paperLastOutcome").textContent = paperState.lastMessage || "No paper-test rounds scored yet. Start paper test, keep both tabs open, and wait for one new round to sync.";
     }
@@ -111,7 +107,7 @@
     };
     paperState.results.push(result);
     paperState.results = paperState.results.slice(-1000);
-    paperState.lastMessage = `Scored round ${paperState.results.length}: ${result.bandHit ? "band hit" : "band miss"}; absolute error ${fmt(absError)}.`;
+    paperState.lastMessage = `Scored round ${paperState.results.length}: model error ${fmt(absError)}, rolling-50 baseline error ${fmt(baselineAbsError)}; ${result.bandHit ? "band hit" : "band miss"}.`;
     paperState.pending = null;
     savePaperState();
   }
@@ -1047,6 +1043,18 @@
     paperState.lastMessage = "Paper test paused. No new results will be scored.";
     savePaperState();
   });
+
+  $("paperExportButton").addEventListener("click",()=>{
+    if(!paperState.results.length){alert("No paper-test scores yet. Start the test and wait for a new single-round sync.");return;}
+    const headers=["test_round","guess_created_at","observed_at","sample_size","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x"];
+    const rows=[headers,...paperState.results.map((r,i)=>[
+      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit
+    ])];
+    const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+    const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="aviator-paper-test.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  });
+
   $("paperResetButton").addEventListener("click",()=>{
     if(!confirm("Reset only the paper-test guesses and scores? Your round history will not be deleted.")) return;
     paperState = {active:false,pending:null,results:[],skipped:0,lastMessage:"Paper-test log reset. Start again to record fresh guesses."};
