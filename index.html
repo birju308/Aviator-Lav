@@ -11,14 +11,14 @@
   <main class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Aviator Lab home"><span class="brand-mark">✦</span><span>Aviator <b>Lab</b></span></a>
-      <span class="offline-pill"><i></i> OFFLINE ANALYZER</span>
+      <span class="offline-pill"><i></i> LOCAL EXTENSION SYNC</span>
     </header>
 
     <section class="hero">
       <div class="hero-copy">
         <p class="kicker">EXPERIMENTAL CRASH ANALYSIS</p>
         <h1>Study the rounds.<br><span>Measure the uncertainty.</span></h1>
-        <p class="hero-description">Log completed multipliers, review patterns and test a simple historical baseline. No live game connection is used.</p>
+        <p class="hero-description">Review completed multipliers and historical patterns. The optional Chrome extension can sync visible results locally while the game tab is open.</p>
       </div>
       <div class="hero-art" aria-hidden="true">
         <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
@@ -52,6 +52,7 @@
       </form>
       <div class="actions"><button id="exportButton" class="button secondary" type="button">↓ Export CSV</button><label class="button secondary import-label" for="importFile">↑ Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label><button id="clearButton" class="button quiet-danger" type="button">Clear history</button></div>
       <p id="saveStatus" class="hint status" aria-live="polite">Saved in this browser on this device.</p>
+      <p id="extensionSyncStatus" class="hint status" aria-live="polite">Chrome extension auto-sync: waiting for the Aviator Lab extension in this browser. Keep Chrome and the game tab open for collection.</p>
     </section>
 
     <div class="section-label"><span class="step">03</span><span>Historical snapshot</span></div>
@@ -62,10 +63,20 @@
       <article class="stat-card"><span class="stat-label">Below 2.00x</span><strong id="belowTwoValue">N/A</strong><span class="stat-note">Share of saved rounds</span></article>
     </section>
 
-    <div class="section-label"><span class="step">04</span><span>Experimental crash estimate</span></div>
+    <div class="section-label"><span class="step">04</span><span>Historical pattern snapshot</span></div>
+    <section class="stats-grid pattern-grid" aria-label="Descriptive historical patterns">
+      <article class="stat-card"><span class="stat-label">Current below-2x streak</span><strong id="currentLowStreak">N/A</strong><span class="stat-note">Consecutive saved rounds</span></article>
+      <article class="stat-card"><span class="stat-label">Longest below-2x streak</span><strong id="longestLowStreak">N/A</strong><span class="stat-note">Within this sample</span></article>
+      <article class="stat-card"><span class="stat-label">Results at least 5x</span><strong id="highFiveValue">N/A</strong><span class="stat-note">Count and share of history</span></article>
+      <article class="stat-card"><span class="stat-label">Results at least 10x</span><strong id="highTenValue">N/A</strong><span class="stat-note">Count and share of history</span></article>
+      <article class="stat-card"><span class="stat-label">Below 2x in last 20</span><strong id="recentBelowValue">N/A</strong><span class="stat-note">Recent sample only</span></article>
+    </section>
+    <p class="hint">These are descriptions of past rounds only. A streak does not make a higher or lower next result due.</p>
+
+    <div class="section-label"><span class="step">05</span><span>Experimental crash estimate</span></div>
     <section class="panel estimate-panel">
       <div class="estimate-head">
-        <div><p class="kicker">HISTORICAL BASELINE</p><h2>Next-round reference</h2><p class="muted">A statistical reference, not a known crash point.</p></div>
+        <div><p class="kicker">HISTORICAL BASELINE</p><h2>Next-round reference</h2><p class="muted">A historical benchmark—not a forecast of the next crash.</p></div>
         <span class="estimate-status" id="modelStatus">WAITING FOR DATA</span>
       </div>
       <div class="estimate-value-wrap">
@@ -74,17 +85,17 @@
       </div>
       <div class="meter"><div id="dataMeter"></div></div>
       <div class="meter-caption"><span id="dataMeterLabel">0 rounds recorded</span><span>100 rounds = initial sample target</span></div>
-      <div id="analysisOutput" class="analysis-output">Add completed results to calculate a historical reference.</div>
+      <div id="analysisOutput" class="analysis-output">Add completed results or connect the local extension to calculate a historical reference.</div>
       <button id="analyzeButton" class="button primary analyze-button" type="button">Run analysis</button>
       <p class="disclaimer"><strong>Important:</strong> This estimate is based on past results only. If rounds are independently randomized, previous multipliers do not reveal the next crash point. Do not treat this as betting advice.</p>
     </section>
 
-    <div class="section-label"><span class="step">05</span><span>Saved rounds</span></div>
+    <div class="section-label"><span class="step">06</span><span>Saved rounds</span></div>
     <section class="panel history-panel">
       <div class="panel-title"><div><h2>Round history</h2><p class="muted">Newest results appear first.</p></div><span class="counter" id="historyCountSecondary">0 saved</span></div>
       <div class="table-wrap"><table><thead><tr><th>Round</th><th>Multiplier</th><th>Recorded at</th><th></th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">No results yet. Add a completed round above.</td></tr></tbody></table></div>
     </section>
-    <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Offline historical analyzer <span>·</span> No guaranteed predictions</footer>
+    <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
   <script src="script.js"></script>
 </body>
