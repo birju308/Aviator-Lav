@@ -144,33 +144,115 @@
         : "No data";
     }
 
-    // Walk-forward test: every historical test uses only results that came before it.
-    let hits = 0, baselineHits = 0, testCount = 0;
+    // Walk-forward comparison: every prediction uses only the rounds before that target.
+    const candidateNames = [
+      "Smoothed history blend",
+      "Recent 25-round majority",
+      "Last-band transition",
+      "Decay-weighted frequency"
+    ];
+    const hitCounts = [0,0,0,0];
+    let baselineHits = 0, testCount = 0;
+    const chooseTop = counts => {
+      let top = 0;
+      for (let j = 1; j < counts.length; j++) if (counts[j] > counts[top]) top = j;
+      return top;
+    };
+    const majorityOf = history => {
+      const counts = [1,1,1,1];
+      history.forEach(v => counts[outcomeBand(v)]++);
+      return chooseTop(counts);
+    };
+    const recentMajorityOf = history => {
+      const counts = [1,1,1,1];
+      history.slice(-25).forEach(v => counts[outcomeBand(v)]++);
+      return chooseTop(counts);
+    };
+    const transitionOf = history => {
+      if (history.length < 2) return majorityOf(history);
+      const last = outcomeBand(history[history.length - 1]);
+      const counts = [1,1,1,1];
+      for (let j = 1; j < history.length; j++) {
+        if (outcomeBand(history[j - 1]) === last) counts[outcomeBand(history[j])]++;
+      }
+      const observedTransitions = history.slice(1).filter((v,j)=>outcomeBand(history[j])===last).length;
+      return observedTransitions >= 4 ? chooseTop(counts) : majorityOf(history);
+    };
+    const decayOf = history => {
+      if (!history.length) return 0;
+      const counts = [1,1,1,1];
+      for (let j = 0; j < history.length; j++) {
+        const weight = Math.pow(0.94, history.length - 1 - j);
+        counts[outcomeBand(history[j])] += weight;
+      }
+      return chooseTop(counts);
+    };
+    const predictCandidates = train => [
+      calculateBandModel(train).top,
+      recentMajorityOf(train),
+      transitionOf(train),
+      decayOf(train)
+    ];
     if (n >= 20) {
       const warmup = Math.min(30, Math.max(12, Math.floor(n * 0.5)));
       for (let i = warmup; i < n; i++) {
         const train = vals.slice(0, i);
-        const predicted = calculateBandModel(train).top;
-        const counts = [0, 0, 0, 0];
+        const predictions = predictCandidates(train);
+        const counts = [0,0,0,0];
         train.forEach(v => counts[outcomeBand(v)]++);
-        let baseline = 0;
-        for (let j = 1; j < counts.length; j++) if (counts[j] > counts[baseline]) baseline = j;
+        const baseline = chooseTop(counts);
         const actual = outcomeBand(vals[i]);
-        if (predicted === actual) hits++;
+        predictions.forEach((pred,j) => { if (pred === actual) hitCounts[j]++; });
         if (baseline === actual) baselineHits++;
         testCount++;
       }
     }
-    $("modelBacktestHit").textContent = testCount ? `${hits}/${testCount} (${(hits / testCount * 100).toFixed(1)}%)` : "Need 20+";
-    $("modelBacktestBaseline").textContent = testCount ? `${baselineHits}/${testCount} (${(baselineHits / testCount * 100).toFixed(1)}%)` : "Need 20+";
+    const hitRates = hitCounts.map(h => testCount ? h / testCount : 0);
+    const baselineRate = testCount ? baselineHits / testCount : 0;
+    const blendHits = hitCounts[0];
+    $("modelBacktestHit").textContent = testCount ? `${blendHits}/${testCount} (${(hitRates[0]*100).toFixed(1)}%)` : "Need 20+";
+    $("modelBacktestBaseline").textContent = testCount ? `${baselineHits}/${testCount} (${(baselineRate*100).toFixed(1)}%)` : "Need 20+";
     $("modelBacktestCount").textContent = String(testCount);
+    const compareBody = $("modelComparisonBody");
+    if (compareBody) {
+      compareBody.replaceChildren();
+      const rows = candidateNames.map((name,i)=>({name,hits:hitCounts[i],rate:hitRates[i],delta:hitRates[i]-baselineRate}));
+      rows.push({name:"Most-common-band baseline",hits:baselineHits,rate:baselineRate,delta:0});
+      rows.forEach(row=>{
+        const tr=document.createElement("tr");
+        const values=[row.name,testCount?`${row.hits}/${testCount} (${(row.rate*100).toFixed(1)}%)`:"N/A",
+          testCount?(row.delta>0?"+":"")+`${(row.delta*100).toFixed(1)} pp`:"N/A"];
+        values.forEach((value,i)=>{const td=document.createElement("td");td.textContent=value;if(i===2&&testCount)td.className=row.delta>0?"model-delta-positive":row.delta<0?"model-delta-negative":"model-delta-neutral";tr.appendChild(td);});
+        compareBody.appendChild(tr);
+      });
+    }
+    const bestRate = Math.max(...hitRates);
+    const bestIndex = hitRates.indexOf(bestRate);
+    const verdict = $("modelEdgeVerdict");
+    const deltaNode = $("modelEdgeDelta");
+    const explanation = $("modelEdgeExplanation");
+    if (verdict && deltaNode && explanation) {
+      if (n < 100 || testCount < 50) {
+        verdict.textContent = "INSUFFICIENT TEST SAMPLE";
+        deltaNode.textContent = `${testCount} walk-forward rounds`;
+        explanation.textContent = "The sample is too small to assess a real predictive edge. Candidate models can look better or worse by chance.";
+      } else if (bestRate >= baselineRate + 0.05) {
+        verdict.textContent = "CANDIDATE EDGE — UNCONFIRMED";
+        deltaNode.textContent = `+${((bestRate-baselineRate)*100).toFixed(1)} pp vs baseline`;
+        explanation.textContent = `${candidateNames[bestIndex]} scored best on this exploratory walk-forward comparison. Because several candidates were compared on the same history, this advantage needs a separate untouched future sample before it can be trusted.`;
+      } else {
+        verdict.textContent = "NO CLEAR EDGE DETECTED";
+        deltaNode.textContent = `${((bestRate-baselineRate)*100).toFixed(1)} pp best-vs-baseline`;
+        explanation.textContent = "None of the tested historical methods beat the most-common-band baseline by at least 5 percentage points. The safer conclusion is that this sample has not demonstrated useful predictive signal.";
+      }
+    }
 
     let note = n
       ? `The model currently ranks ${names[model.top]} highest in a smoothed history-frequency blend (${(model.probabilities[model.top] * 100).toFixed(1)}% score). Its displayed midpoint is the median of past results within that band—not an exact next-crash prediction. `
       : "Add completed results to calculate historical frequencies. ";
-    if (n < 50) note += "This sample is too small to assess model quality reliably. ";
-    else note += "Check the walk-forward result against the simple most-common-band baseline; if it does not beat the baseline across a much larger sample, there is no evidence of added predictive value. ";
-    note += "A frequency score is not a calibrated chance for the next round, and historical streaks do not make a result due.";
+    if (n < 100) note += "This sample is too small to assess model quality reliably. ";
+    else note += "The model comparison reports historical performance against a simple baseline. A backtest win does not guarantee future predictive value, especially after trying several candidates. ";
+    note += "The frequency score is not a calibrated chance for the next round, and historical streaks do not make a result due.";
     $("adaptiveModelNote").textContent = note;
   }
 
