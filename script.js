@@ -960,6 +960,7 @@
 
   function render() {
     const vals = values(), n = vals.length;
+    renderPaperTracker();
     $("totalRounds").textContent = n.toLocaleString();
     $("averageValue").textContent = n ? fmt(vals.reduce((a,b)=>a+b,0)/n) : "N/A";
     $("medianValue").textContent = fmt(median(vals));
@@ -1036,6 +1037,7 @@
       ? "Paper test started. This guess is locked for the next single newly synced result."
       : "Cannot lock a guess until there is usable history.";
     savePaperState();
+    renderPaperTracker();
   });
   $("paperPauseButton").addEventListener("click",()=>{
     paperState.active = false;
@@ -1059,6 +1061,7 @@
     if(!confirm("Reset only the paper-test guesses and scores? Your round history will not be deleted.")) return;
     paperState = {active:false,pending:null,results:[],skipped:0,lastMessage:"Paper-test log reset. Start again to record fresh guesses."};
     savePaperState();
+    renderPaperTracker();
   });
 
   $("removeSyncedButton").addEventListener("click",()=>{
