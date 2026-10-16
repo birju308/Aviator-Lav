@@ -213,10 +213,52 @@
     }
   }
 
+  function receiveFairnessSync(message) {
+    const statusNode = $("pfAutoCaptureStatus");
+    const records = Array.isArray(message.rounds)
+      ? message.rounds.filter(r => r && typeof r.id === "string" && typeof r.serverSeed === "string" &&
+          Array.isArray(r.clientSeeds) && r.clientSeeds.length === 3 &&
+          typeof r.hash === "string" && Number.isFinite(Number(r.multiplier)))
+      : [];
+    const ackIds = Array.isArray(message.rounds) ? message.rounds.map(r => r && r.id).filter(Boolean) : [];
+    if (ackIds.length) {
+      window.postMessage({
+        source: "aviator-lab-page-v07",
+        type: "AUTO_FAIRNESS_ACK",
+        ids: ackIds
+      }, window.location.origin);
+    }
+    if (!records.length) {
+      if (statusNode && message.status && message.status.message) {
+        statusNode.textContent = "Extension connected · " + message.status.message;
+      }
+      return;
+    }
+    records.sort((a,b) => Date.parse(a.capturedAt || 0) - Date.parse(b.capturedAt || 0));
+    const latest = records[records.length - 1];
+    $("pfServerSeed").value = latest.serverSeed;
+    $("pfClientSeed1").value = latest.clientSeeds[0];
+    $("pfClientSeed2").value = latest.clientSeeds[1];
+    $("pfClientSeed3").value = latest.clientSeeds[2];
+    $("pfDisplayedMultiplier").value = String(latest.multiplier);
+    $("pfDisplayedHash").value = latest.hash;
+    $("pfServerCommitment").value = latest.serverCommitment || "";
+    if (statusNode) {
+      statusNode.textContent = "Extension captured completed round " + (latest.roundId || "(ID unavailable)") +
+        " at " + (latest.capturedAt ? new Date(latest.capturedAt).toLocaleTimeString() : "an unknown time") +
+        ". Fields are filled automatically; verifying locally now.";
+    }
+    $("pfVerifierForm").dispatchEvent(new Event("submit", {bubbles:true,cancelable:true}));
+  }
+
   window.addEventListener("message", event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const message = event.data;
-    if (message && ["aviator-lab-extension-v05", "aviator-lab-extension-v06", "aviator-lab-extension-v07", "aviator-lab-extension-v08", "aviator-lab-extension-v09", "aviator-lab-extension-v10", "aviator-lab-extension-v11"].includes(message.source) && message.type === "AUTO_ROUND_SYNC") {
+    if (message && message.source === "aviator-lab-extension-v12" && message.type === "AUTO_FAIRNESS_SYNC") {
+      receiveFairnessSync(message);
+      return;
+    }
+    if (message && ["aviator-lab-extension-v05", "aviator-lab-extension-v06", "aviator-lab-extension-v07", "aviator-lab-extension-v08", "aviator-lab-extension-v09", "aviator-lab-extension-v10", "aviator-lab-extension-v11", "aviator-lab-extension-v12"].includes(message.source) && message.type === "AUTO_ROUND_SYNC") {
       receiveAutoSync(message);
       window.postMessage({
         source: "aviator-lab-page-v06",
