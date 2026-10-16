@@ -79,6 +79,25 @@
         <div><p class="kicker">EXPERIMENTAL CRASH PREDICTOR</p><h2>Next-round outcome-band estimate</h2><p class="muted">Ranks multiplier bands from past results; it cannot see the next round’s hidden result.</p></div>
         <span class="estimate-status" id="adaptiveModelStatus">WAITING FOR DATA</span>
       </div>
+      <div class="pattern-learner-box">
+        <div class="pattern-learner-heading">
+          <div><p class="kicker">SEQUENCE + STREAK FEATURES</p><h3>Pattern learner · test mode</h3><p class="muted">A transparent, history-only model that looks for repeated band sequences, transitions and streak context.</p></div>
+          <span class="estimate-status" id="patternModelStatus">WAITING FOR DATA</span>
+        </div>
+        <div class="pattern-learner-grid">
+          <article class="stat-card"><span class="stat-label">Next-round test guess band</span><strong id="patternGuessBand">N/A</strong><span class="stat-note">Highest model score, not certainty</span></article>
+          <article class="stat-card"><span class="stat-label">Historical midpoint in band</span><strong id="patternGuessMedian">N/A</strong><span class="stat-note">Past median, not exact crash point</span></article>
+          <article class="stat-card"><span class="stat-label">Relative pattern score</span><strong id="patternGuessScore">N/A</strong><span class="stat-note">Not calibrated odds</span></article>
+          <article class="stat-card"><span class="stat-label">Repeated-pattern support</span><strong id="patternMotifHits">N/A</strong><span class="stat-note" id="patternMotifNote">Need more history</span></article>
+        </div>
+        <div class="pattern-evidence-grid">
+          <div class="pattern-evidence"><span class="stat-label">Current band streak</span><strong id="patternCurrentStreak">N/A</strong></div>
+          <div class="pattern-evidence"><span class="stat-label">Last 4 bands</span><strong id="patternRecentSequence">N/A</strong></div>
+          <div class="pattern-evidence"><span class="stat-label">After current band</span><strong id="patternTransitionEvidence">N/A</strong></div>
+        </div>
+        <div id="patternExplanation" class="analysis-output">Collect completed rounds to let the pattern learner inspect the sequence.</div>
+        <p class="disclaimer"><strong>Test mode only:</strong> this learns visible patterns from saved outcomes, not hidden game inputs. The candidate band and midpoint can be wrong; do not treat the score as a real probability or betting signal. Exact crash time/multiplier cannot be reliably predicted.</p>
+      </div>
       <div class="adaptive-summary">
         <article class="stat-card"><span class="stat-label">Model’s top-ranked band</span><strong id="modelTopBand">N/A</strong><span class="stat-note">Most represented after smoothing</span></article>
         <article class="stat-card"><span class="stat-label">Historical frequency score</span><strong id="modelTopProbability">N/A</strong><span class="stat-note">Smoothed sample score, not calibrated odds</span></article>
