@@ -78,7 +78,8 @@
         <div><h2 id="verifierHeading">Verify a finished round</h2><p class="muted">Recalculate the SHA-512 chain and compare the displayed result. This checks a past round; it does not predict the next one.</p></div>
         <span class="estimate-status">LOCAL ONLY</span>
       </div>
-      <p class="hint verifier-privacy">All calculations run in this browser. Seed inputs are not sent to a server or saved in your round history. Enter the full, exact values shown in the completed-round fairness panel.</p>
+      <p class="hint verifier-privacy">All calculations run in this browser. Seed inputs are not sent to a server or saved in your round history. The Chrome extension can capture the visible completed-round fairness panel and fill these fields automatically.</p>
+      <p id="pfAutoCaptureStatus" class="hint status" aria-live="polite">Auto-capture is waiting. Keep the extension enabled, then open the game's completed-round fairness panel once.</p>
       <form id="pfVerifierForm" class="verifier-form">
         <label for="pfServerSeed">Revealed server seed
           <input id="pfServerSeed" type="text" autocomplete="off" spellcheck="false" placeholder="Copy the complete server seed" required>
