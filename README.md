@@ -39,3 +39,8 @@ The **Remove auto-synced results (N)** button removes only records tagged as Chr
 The UI ranks four multiplier bands using a smoothed blend of full-sample frequency and the latest 50 saved results. It also runs a walk-forward diagnostic: each historical test uses only earlier results, then compares the selected band with a simple most-common-band baseline. With small samples the test is noisy and should not be interpreted as predictive skill. These are historical frequency summaries, not calibrated future odds or an exact crash prediction.
 
 Keep collection data clean: multiple collector extension versions can cause duplicates. Remove old collector versions and use the website's auto-synced-results cleanup button if necessary.
+
+
+## Experimental candidate model comparison
+
+The predictor compares a smoothed full-history blend, a recent-25 majority, a last-band transition candidate, a decay-weighted frequency candidate, and a most-common-band baseline using chronological walk-forward tests. For each test, the predictor uses only earlier observations. The dashboard reports a separate verdict: small samples are marked insufficient; a candidate performance difference is unconfirmed and can be due to trying multiple methods against the same history. Nothing here predicts an exact future crash multiplier/time or supplies betting advice.
