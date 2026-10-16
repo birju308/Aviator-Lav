@@ -75,3 +75,8 @@ This evaluates the forecast, it does not improve or guarantee it. Do not use an 
 ## Local supervised ML experiment
 
 The page now includes a small multinomial logistic-regression classifier trained in the browser on earlier multiplier-band sequences, streak length, rolling band frequencies and recent multiplier summaries. Its weights are learned from past one-step examples; it is not a hosted LLM and no results are sent to an external AI service. The classifier shows a frozen chronological holdout score against a simple same-round baseline. Scores are exploratory and uncalibrated. If the classifier does not beat the baseline on future unseen rounds, do not treat it as useful predictive signal. The exact upcoming crash point cannot be reliably inferred from previous outcomes alone.
+
+
+## Numeric supervised ML experiment
+
+Alongside the logistic-regression band classifier, the page includes a small log-scaled numeric regression model trained locally in the browser from previous bands, streak length, rolling band frequencies and multiplier summaries. It outputs an experimental point estimate. A frozen chronological holdout compares both its median and mean absolute error against a rolling-50 median baseline on the same later rounds. The model is useful only as an experiment: if its holdout errors are not lower than the baseline, the simple median should be preferred. Neither model can see the hidden result or reliably predict an exact crash multiplier.
