@@ -56,3 +56,11 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 .model-band .hint{margin-bottom:0;font-size:.72rem}
 #extensionSyncStatus{overflow-wrap:anywhere}
 @media(max-width:700px){.adaptive-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.model-bands{grid-template-columns:1fr}}
+
+
+/* Predictor walk-forward diagnostics */
+.backtest-summary{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:8px}
+.backtest-summary .stat-card strong{font-size:clamp(1rem,2.1vw,1.3rem);overflow-wrap:anywhere}
+#adaptiveModelNote{overflow-wrap:anywhere}
+@media(max-width:700px){.backtest-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.backtest-summary{grid-template-columns:1fr}}
