@@ -32,12 +32,73 @@
   function fmt(n) { return Number.isFinite(n) ? `${n.toFixed(2)}x` : "N/A"; }
   function pct(n, total) { return total ? `${(100*n/total).toFixed(1)}%` : "N/A"; }
 
+
+  function renderPatternStats(vals) {
+    const n = vals.length;
+    let currentStreak = 0, longestStreak = 0, run = 0;
+    for (const v of vals) {
+      if (v < 2) { run++; longestStreak = Math.max(longestStreak, run); }
+      else run = 0;
+    }
+    for (let i = n - 1; i >= 0 && vals[i] < 2; i--) currentStreak++;
+    const last20 = vals.slice(-20);
+    const high5 = vals.filter(v => v >= 5).length;
+    const high10 = vals.filter(v => v >= 10).length;
+    $("currentLowStreak").textContent = n ? String(currentStreak) : "N/A";
+    $("longestLowStreak").textContent = n ? String(longestStreak) : "N/A";
+    $("highFiveValue").textContent = n ? `${high5} (${pct(high5,n)})` : "N/A";
+    $("highTenValue").textContent = n ? `${high10} (${pct(high10,n)})` : "N/A";
+    $("recentBelowValue").textContent = last20.length ? pct(last20.filter(v => v < 2).length, last20.length) : "N/A";
+  }
+
+  function receiveAutoSync(message) {
+    if (!Array.isArray(message.rounds)) return;
+    let added = 0;
+    const existingIds = new Set(rounds.map(r => r.extensionId).filter(Boolean));
+    for (const item of message.rounds) {
+      if (!item || typeof item.id !== "string" || existingIds.has(item.id)) continue;
+      const multiplier = Number(item.multiplier);
+      if (!Number.isFinite(multiplier) || multiplier < 1 || multiplier > 1000000) continue;
+      const parsedTime = Date.parse(item.timestamp || "");
+      rounds.push({
+        multiplier,
+        timestamp: Number.isFinite(parsedTime) ? new Date(parsedTime).toISOString() : new Date().toISOString(),
+        extensionId: item.id,
+        source: "Chrome extension auto-sync"
+      });
+      existingIds.add(item.id);
+      added++;
+      if (rounds.length >= MAX_ROUNDS) break;
+    }
+    if (added) {
+      rounds = rounds.slice(-MAX_ROUNDS);
+      saveHistory();
+      render();
+      analyze();
+    }
+    const frameCount = Array.isArray(message.frames) ? message.frames.length : 0;
+    const latest = message.lastCollectedAt ? new Date(message.lastCollectedAt).toLocaleTimeString() : "not yet";
+    const target = $("extensionSyncStatus");
+    if (target) {
+      target.textContent = `Chrome extension connected · ${message.rounds.length} automatically collected result(s) available · ${added} new result(s) synced this check. Game-tab activity last recorded: ${latest}. Keep Chrome and the Aviator tab open to collect new rounds.`;
+    }
+  }
+
+  window.addEventListener("message", event => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const message = event.data;
+    if (message && message.source === "aviator-lab-extension-v05" && message.type === "AUTO_ROUND_SYNC") {
+      receiveAutoSync(message);
+    }
+  });
+
   function render() {
     const vals = values(), n = vals.length;
     $("totalRounds").textContent = n.toLocaleString();
     $("averageValue").textContent = n ? fmt(vals.reduce((a,b)=>a+b,0)/n) : "N/A";
     $("medianValue").textContent = fmt(median(vals));
     $("belowTwoValue").textContent = n ? pct(vals.filter(v=>v<2).length,n) : "N/A";
+    renderPatternStats(vals);
     $("historyCount").textContent = `${n} / ${MAX_ROUNDS}`;
     $("historyCountSecondary").textContent = `${n} saved`;
     $("dataMeter").style.width = `${Math.min(100, n)}%`;
