@@ -84,6 +84,11 @@
           <div><p class="kicker">SEQUENCE + STREAK FEATURES</p><h3>Pattern learner · test mode</h3><p class="muted">A transparent, history-only model that looks for repeated band sequences, transitions and streak context.</p></div>
           <span class="estimate-status" id="patternModelStatus">WAITING FOR DATA</span>
         </div>
+        <div class="point-guess-card">
+          <div class="point-guess-top"><span class="stat-label">AI-style point guess · test mode</span><span class="guess-pill" id="patternGuessConfidence">WAITING FOR DATA</span></div>
+          <strong id="patternGuessMultiplier">N/A</strong>
+          <p id="patternNumericReasoning">Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.</p>
+        </div>
         <div class="pattern-learner-grid">
           <article class="stat-card"><span class="stat-label">Next-round test guess band</span><strong id="patternGuessBand">N/A</strong><span class="stat-note">Highest model score, not certainty</span></article>
           <article class="stat-card"><span class="stat-label">Historical midpoint in band</span><strong id="patternGuessMedian">N/A</strong><span class="stat-note">Past median, not exact crash point</span></article>
