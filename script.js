@@ -3,7 +3,7 @@
   const STORAGE_KEY = "aviatorAnalyzer.rounds.v2";
   const MAX_ROUNDS = 5000;
   const $ = (id) => document.getElementById(id);
-  const PAPER_KEY = "aviatorAnalyzer.paperTracker.v1";
+  const PAPER_KEY = "aviatorAnalyzer.paperTracker.v2";
   let paperState = loadPaperState();
 
   function loadPaperState() {
@@ -31,6 +31,7 @@
     if (!Number.isFinite(model.numericGuess)) return null;
     return {
       point: model.numericGuess,
+      baselinePoint: median(history),
       band: model.top,
       bandLabel: model.names[model.top],
       modelScore: model.scores[model.top],
@@ -57,13 +58,20 @@
     const nearHits = results.filter(r => r.absError <= 0.25).length;
     const errors = results.map(r => r.absError).sort((a,b)=>a-b);
     const medErr = errors.length ? (errors.length%2 ? errors[(errors.length-1)/2] : (errors[errors.length/2-1]+errors[errors.length/2])/2) : NaN;
+    const baselineErrors = results.filter(r => Number.isFinite(r.baselineAbsError)).map(r => r.baselineAbsError).sort((a,b)=>a-b);
+    const baselineMedErr = baselineErrors.length ? (baselineErrors.length%2 ? baselineErrors[(baselineErrors.length-1)/2] : (baselineErrors[baselineErrors.length/2-1]+baselineErrors[baselineErrors.length/2])/2) : NaN;
     $("paperScoredCount").textContent = results.length.toLocaleString();
     $("paperBandRate").textContent = results.length ? pct(bandHits,results.length) : "N/A";
     $("paperMedianError").textContent = Number.isFinite(medErr) ? fmt(medErr).replace("x","x") : "N/A";
     $("paperNearRate").textContent = results.length ? pct(nearHits,results.length) : "N/A";
+    $("paperBaselineError").textContent = Number.isFinite(baselineMedErr) ? fmt(baselineMedErr) : "N/A";
+    $("paperBaselineNote").textContent = baselineErrors.length ? `${baselineErrors.length} comparable round(s)` : "Starts with new test rounds";
     if (results.length) {
       const last = results[results.length-1];
-      $("paperLastOutcome").textContent = `Last scored result: guess ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
+      const baselineText = Number.isFinite(last.baselineAbsError)
+        ? `; all-history median baseline ${fmt(last.baselineGuess)}, error ${fmt(last.baselineAbsError)}`
+        : "";
+      $("paperLastOutcome").textContent = `Last scored result: rolling-median guess ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)}${baselineText} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
     } else {
       $("paperLastOutcome").textContent = paperState.lastMessage || "No paper-test rounds scored yet. Start paper test, keep both tabs open, and wait for one new round to sync.";
     }
@@ -82,10 +90,13 @@
       return;
     }
     const absError = Math.abs(actual - pending.point);
+    const baselineAbsError = Number.isFinite(pending.baselinePoint) ? Math.abs(actual - pending.baselinePoint) : NaN;
     const result = {
       guess: pending.point,
       actual,
       absError,
+      baselineGuess: pending.baselinePoint,
+      baselineAbsError,
       guessBand: pending.band,
       actualBand: outcomeBand(actual),
       bandHit: outcomeBand(actual) === pending.band,
@@ -319,52 +330,19 @@
     const valuesInBand=history.filter(v=>outcomeBand(v)===top);
     const bandMedian=valuesInBand.length?median(valuesInBand):NaN;
 
-    // Make a single numeric test guess, with an explicit evidence source.
-    // Prefer the median result after an exact matching 2- or 3-band history motif.
-    let conditionalValues=[], conditionalLength=0;
-    for(let length=Math.min(3,n-1);length>=2;length--) {
-      const suffix=seq.slice(n-length);
-      const candidates=[];
-      for(let i=0;i+length<n;i++) {
-        let match=true;
-        for(let j=0;j<length;j++) {
-          if(seq[i+j]!==suffix[j]) {match=false;break;}
-        }
-        if(match && outcomeBand(history[i+length])===top) candidates.push(history[i+length]);
-      }
-      if(candidates.length>=3) {
-        conditionalValues=candidates;
-        conditionalLength=length;
-        break;
-      }
-    }
-    const recentInBand=history.slice(-50).filter(v=>outcomeBand(v)===top);
-    let numericPool, numericSource;
-    if(conditionalValues.length>=3) {
-      numericPool=conditionalValues;
-      numericSource=`median of ${conditionalValues.length} past results after the same ${conditionalLength}-band sequence`;
-    } else if(recentInBand.length>=4) {
-      numericPool=recentInBand;
-      numericSource=`median of ${recentInBand.length} matching-band results in the last ${Math.min(50,n)} rounds`;
-    } else {
-      numericPool=valuesInBand;
-      numericSource=`median of ${valuesInBand.length} saved results in the selected band`;
-    }
-    let numericGuess=numericPool.length?median(numericPool):NaN;
-    const bandLimits=[[1,1.99],[2,4.99],[5,9.99],[10,Infinity]][top];
-    if(Number.isFinite(numericGuess)) {
-      numericGuess=Math.max(bandLimits[0],Math.min(bandLimits[1],numericGuess));
-      numericGuess=Math.round(numericGuess*100)/100;
-    }
-    const numericConfidence=n<50?"LOW · small sample":
-      conditionalValues.length>=5?"LOW · repeated pattern found, not validated":
-      "LOW · historical-band fallback";
+    // Numeric point estimates are scored under absolute error, whose robust
+    // historical benchmark is the median of unfiltered recent outcomes.
+    // Do not condition the numeric estimate on the most-likely band: that
+    // can artificially push it low when a high result lands.
+    const numericPool=history.slice(-Math.min(50,n));
+    const numericGuess=numericPool.length?Math.round(median(numericPool)*100)/100:NaN;
+    const numericSource=`median of all ${numericPool.length} multipliers in the last ${numericPool.length} saved rounds (rolling median)`;
+    const numericConfidence=n<50?"LOW · fewer than 50 saved rounds":"LOW · rolling-median baseline, not a validated forecast";
     const support=(transitionCount>=3?transitionCount:0)+(motif?motif.hits:0)+(runHits>=3?runHits:0);
     return {
       top,scores,names,support,motifLength:motif?.length||0,motifHits:motif?.hits||0,
       transitionCount,currentStreak,recentSequence:seq.slice(-4).map(b=>names[b]),
       lastBand,bandMedian,numericGuess,numericSource,numericConfidence,
-      conditionalLength,conditionalMatches:conditionalValues.length,
       status:n<20?"BUILDING SAMPLE":n<100?"EARLY SAMPLE":"PATTERN TEST",
       runHits,cappedRun
     };
@@ -380,7 +358,7 @@
     const numericReason=$("patternNumericReasoning");
     if(numericReason) {
       numericReason.textContent=vals.length
-        ? `My test-mode guess is ${fmt(model.numericGuess)} because the strongest history-only band score is ${model.names[model.top]}. The point value comes from the ${model.numericSource}. Recent band sequence: ${model.recentSequence.join(" → ")}; current band streak: ${model.currentStreak}. This is a single, uncertain historical analogy—not a known future crash point.`
+        ? `The numeric test estimate is ${fmt(model.numericGuess)}, the ${model.numericSource}. Separately, the highest-scoring historical band is ${model.names[model.top]} (${(model.scores[model.top]*100).toFixed(1)} relative score). Recent band sequence: ${model.recentSequence.join(" → ")}; current band streak: ${model.currentStreak}. This rolling-median benchmark is not a known future crash point.`
         : "Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.";
     }
     $("patternGuessScore").textContent=vals.length?`${(model.scores[model.top]*100).toFixed(1)}%`:"N/A";
