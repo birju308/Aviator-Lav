@@ -50,7 +50,7 @@
         <div class="entry-row"><div class="input-wrap"><input id="multiplierInput" type="text" inputmode="decimal" placeholder="Example: 1.45x" autocomplete="off" required><span class="input-suffix">x</span></div><button class="button primary" type="submit">＋ Add round</button></div>
         <p id="inputError" class="error" role="alert" hidden></p>
       </form>
-      <div class="actions"><button id="exportButton" class="button secondary" type="button">↓ Export CSV</button><label class="button secondary import-label" for="importFile">↑ Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label><button id="removeSyncedButton" class="button quiet-danger" type="button">Remove auto-synced results</button><button id="clearButton" class="button quiet-danger" type="button">Clear history</button></div>
+      <div class="actions"><button id="exportButton" class="button secondary" type="button">↓ Export CSV</button><label class="button secondary import-label" for="importFile">↑ Import CSV<input id="importFile" type="file" accept=".csv,text/csv" hidden></label><button id="removeSyncedButton" class="button quiet-danger" type="button">Remove auto-synced results (keep imported)</button><button id="clearButton" class="button quiet-danger" type="button">Clear history</button></div>
       <p id="saveStatus" class="hint status" aria-live="polite">Saved in this browser on this device.</p>
       <p id="extensionSyncStatus" class="hint status" aria-live="polite">Chrome extension auto-sync: waiting for the Aviator Lab extension in this browser. Keep Chrome and the game tab open for collection.</p>
     </section>
@@ -73,7 +73,29 @@
     </section>
     <p class="hint">These are descriptions of past rounds only. A streak does not make a higher or lower next result due.</p>
 
-    <div class="section-label"><span class="step">05</span><span>Experimental crash estimate</span></div>
+    <div class="section-label"><span class="step">05</span><span>Adaptive learning model</span></div>
+    <section class="panel adaptive-panel">
+      <div class="estimate-head">
+        <div><p class="kicker">EXPERIMENTAL HISTORICAL MODEL</p><h2>Adaptive outcome-band explorer</h2><p class="muted">Updates from your saved sample; it does not know the next round's crash point.</p></div>
+        <span class="estimate-status" id="adaptiveModelStatus">WAITING FOR DATA</span>
+      </div>
+      <div class="adaptive-summary">
+        <article class="stat-card"><span class="stat-label">Top historical band</span><strong id="modelTopBand">N/A</strong><span class="stat-note">Most represented after smoothing</span></article>
+        <article class="stat-card"><span class="stat-label">Sample frequency blend</span><strong id="modelTopProbability">N/A</strong><span class="stat-note">Overall + last 50 saved entries</span></article>
+        <article class="stat-card"><span class="stat-label">Observed midpoint in band</span><strong id="modelBandMedian">N/A</strong><span class="stat-note">Median of matching historical rows</span></article>
+        <article class="stat-card"><span class="stat-label">Sample size</span><strong id="modelSampleSize">0</strong><span class="stat-note">Saved results used</span></article>
+      </div>
+      <div class="model-bands">
+        <div class="model-band"><div class="model-band-head"><span>1.00x–1.99x</span><strong id="modelP0">N/A</strong></div><div class="meter"><div id="modelBar0"></div></div><p class="hint" id="modelDetail0">No data</p></div>
+        <div class="model-band"><div class="model-band-head"><span>2.00x–4.99x</span><strong id="modelP1">N/A</strong></div><div class="meter"><div id="modelBar1"></div></div><p class="hint" id="modelDetail1">No data</p></div>
+        <div class="model-band"><div class="model-band-head"><span>5.00x–9.99x</span><strong id="modelP2">N/A</strong></div><div class="meter"><div id="modelBar2"></div></div><p class="hint" id="modelDetail2">No data</p></div>
+        <div class="model-band"><div class="model-band-head"><span>10.00x+</span><strong id="modelP3">N/A</strong></div><div class="meter"><div id="modelBar3"></div></div><p class="hint" id="modelDetail3">No data</p></div>
+      </div>
+      <div id="adaptiveModelNote" class="analysis-output">Add completed results to train this experimental historical frequency model.</div>
+      <p class="disclaimer"><strong>Read carefully:</strong> This is an adaptive frequency summary, not a validated AI forecast. Randomized crash outcomes may be independent; a common historical band does not mean the next round will land there. Do not use it as a betting signal.</p>
+    </section>
+
+    <div class="section-label"><span class="step">06</span><span>Historical baseline</span></div>
     <section class="panel estimate-panel">
       <div class="estimate-head">
         <div><p class="kicker">HISTORICAL BASELINE</p><h2>Historical sample summary</h2><p class="muted">Describes past results only; it does not forecast the next crash.</p></div>
@@ -90,7 +112,7 @@
       <p class="disclaimer"><strong>Important:</strong> This estimate is based on past results only. If rounds are independently randomized, previous multipliers do not reveal the next crash point. Do not treat this as betting advice.</p>
     </section>
 
-    <div class="section-label"><span class="step">06</span><span>Saved rounds</span></div>
+    <div class="section-label"><span class="step">07</span><span>Saved rounds</span></div>
     <section class="panel history-panel">
       <div class="panel-title"><div><h2>Round history</h2><p class="muted">Newest results appear first.</p></div><span class="counter" id="historyCountSecondary">0 saved</span></div>
       <div class="table-wrap"><table><thead><tr><th>Round</th><th>Multiplier</th><th>Recorded at</th><th></th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">No results yet. Add a completed round above.</td></tr></tbody></table></div>
