@@ -73,16 +73,16 @@
     </section>
     <p class="hint">These are descriptions of past rounds only. A streak does not make a higher or lower next result due.</p>
 
-    <div class="section-label"><span class="step">05</span><span>Adaptive learning model</span></div>
+    <div class="section-label"><span class="step">05</span><span>Experimental crash predictor</span></div>
     <section class="panel adaptive-panel">
       <div class="estimate-head">
-        <div><p class="kicker">EXPERIMENTAL HISTORICAL MODEL</p><h2>Adaptive outcome-band explorer</h2><p class="muted">Updates from your saved sample; it does not know the next round's crash point.</p></div>
+        <div><p class="kicker">EXPERIMENTAL CRASH PREDICTOR</p><h2>Next-round outcome-band estimate</h2><p class="muted">Ranks multiplier bands from past results; it cannot see the next round’s hidden result.</p></div>
         <span class="estimate-status" id="adaptiveModelStatus">WAITING FOR DATA</span>
       </div>
       <div class="adaptive-summary">
-        <article class="stat-card"><span class="stat-label">Top historical band</span><strong id="modelTopBand">N/A</strong><span class="stat-note">Most represented after smoothing</span></article>
-        <article class="stat-card"><span class="stat-label">Sample frequency blend</span><strong id="modelTopProbability">N/A</strong><span class="stat-note">Overall + last 50 saved entries</span></article>
-        <article class="stat-card"><span class="stat-label">Observed midpoint in band</span><strong id="modelBandMedian">N/A</strong><span class="stat-note">Median of matching historical rows</span></article>
+        <article class="stat-card"><span class="stat-label">Model’s top-ranked band</span><strong id="modelTopBand">N/A</strong><span class="stat-note">Most represented after smoothing</span></article>
+        <article class="stat-card"><span class="stat-label">Historical frequency score</span><strong id="modelTopProbability">N/A</strong><span class="stat-note">Smoothed sample score, not calibrated odds</span></article>
+        <article class="stat-card"><span class="stat-label">Observed midpoint in band</span><strong id="modelBandMedian">N/A</strong><span class="stat-note">Past median in this band, not a forecast</span></article>
         <article class="stat-card"><span class="stat-label">Sample size</span><strong id="modelSampleSize">0</strong><span class="stat-note">Saved results used</span></article>
       </div>
       <div class="model-bands">
@@ -91,8 +91,13 @@
         <div class="model-band"><div class="model-band-head"><span>5.00x–9.99x</span><strong id="modelP2">N/A</strong></div><div class="meter"><div id="modelBar2"></div></div><p class="hint" id="modelDetail2">No data</p></div>
         <div class="model-band"><div class="model-band-head"><span>10.00x+</span><strong id="modelP3">N/A</strong></div><div class="meter"><div id="modelBar3"></div></div><p class="hint" id="modelDetail3">No data</p></div>
       </div>
-      <div id="adaptiveModelNote" class="analysis-output">Add completed results to train this experimental historical frequency model.</div>
-      <p class="disclaimer"><strong>Read carefully:</strong> This is an adaptive frequency summary, not a validated AI forecast. Randomized crash outcomes may be independent; a common historical band does not mean the next round will land there. Do not use it as a betting signal.</p>
+      <div class="adaptive-summary backtest-summary">
+        <article class="stat-card"><span class="stat-label">Walk-forward band hits</span><strong id="modelBacktestHit">N/A</strong><span class="stat-note">Past-only rolling test</span></article>
+        <article class="stat-card"><span class="stat-label">Most-common-band baseline</span><strong id="modelBacktestBaseline">N/A</strong><span class="stat-note">Simple reference, same test rounds</span></article>
+        <article class="stat-card"><span class="stat-label">Test rounds</span><strong id="modelBacktestCount">0</strong><span class="stat-note">No future data used for each test</span></article>
+      </div>
+      <div id="adaptiveModelNote" class="analysis-output">Add completed results to evaluate the experimental historical frequency model.</div>
+      <p class="disclaimer"><strong>Read carefully:</strong> This is an experimental frequency model, not a validated AI forecast. The walk-forward test is a small historical diagnostic, not evidence that it can predict independent random outcomes. It does not predict an exact multiplier or crash time. Do not use it as a betting signal.</p>
     </section>
 
     <div class="section-label"><span class="step">06</span><span>Historical baseline</span></div>
