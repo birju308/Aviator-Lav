@@ -72,9 +72,57 @@
       <article class="stat-card"><span class="stat-label">Below 2x in last 20</span><strong id="recentBelowValue">N/A</strong><span class="stat-note">Recent sample only</span></article>
     </section>
     <p class="hint">These are descriptions of past rounds only. A streak does not make a higher or lower next result due.</p>
+    <div class="section-label"><span class="step">05</span><span>Completed-round fairness verifier</span></div>
+    <section class="panel verifier-panel" id="verifierPanel" aria-labelledby="verifierHeading">
+      <div class="panel-title">
+        <div><h2 id="verifierHeading">Verify a finished round</h2><p class="muted">Recalculate the SHA-512 chain and compare the displayed result. This checks a past round; it does not predict the next one.</p></div>
+        <span class="estimate-status">LOCAL ONLY</span>
+      </div>
+      <p class="hint verifier-privacy">All calculations run in this browser. Seed inputs are not sent to a server or saved in your round history. Enter the full, exact values shown in the completed-round fairness panel.</p>
+      <form id="pfVerifierForm" class="verifier-form">
+        <label for="pfServerSeed">Revealed server seed
+          <input id="pfServerSeed" type="text" autocomplete="off" spellcheck="false" placeholder="Copy the complete server seed" required>
+        </label>
+        <div class="fields verifier-seeds">
+          <label for="pfClientSeed1">First player's seed
+            <input id="pfClientSeed1" type="text" autocomplete="off" spellcheck="false" placeholder="Client seed 1" required>
+          </label>
+          <label for="pfClientSeed2">Second player's seed
+            <input id="pfClientSeed2" type="text" autocomplete="off" spellcheck="false" placeholder="Client seed 2" required>
+          </label>
+          <label for="pfClientSeed3">Third player's seed
+            <input id="pfClientSeed3" type="text" autocomplete="off" spellcheck="false" placeholder="Client seed 3" required>
+          </label>
+          <label for="pfDisplayedMultiplier">Multiplier shown by the game
+            <input id="pfDisplayedMultiplier" type="number" inputmode="decimal" min="1" max="1000000" step="0.01" placeholder="Example: 2.78" required>
+          </label>
+        </div>
+        <label for="pfDisplayedHash">Combined SHA-512 hash shown in the game
+          <textarea id="pfDisplayedHash" rows="3" spellcheck="false" placeholder="Paste the complete 128-character hash" required></textarea>
+        </label>
+        <label for="pfServerCommitment">Pre-round server-seed SHA-256 commitment (optional)
+          <input id="pfServerCommitment" type="text" autocomplete="off" spellcheck="false" placeholder="Only if you saved the matching pre-round commitment">
+        </label>
+        <div class="actions verifier-actions">
+          <button id="pfVerifyButton" class="button primary" type="submit">Verify finished round</button>
+          <button id="pfClearButton" class="button secondary" type="button">Clear seed inputs</button>
+        </div>
+      </form>
+      <div id="pfOverallStatus" class="analysis-output verifier-status" role="status" aria-live="polite">Enter the exact seeds, combined hash and finished multiplier, then verify.</div>
+      <div class="verifier-results">
+        <article class="stat-card"><span class="stat-label">Recalculated SHA-512</span><strong id="pfCalculatedHashStatus">Not checked</strong><span id="pfCalculatedHashNote" class="stat-note">Seed concatenation in panel order, with no separators</span></article>
+        <article class="stat-card"><span class="stat-label">First 13 hash characters</span><strong id="pfHexPrefix">N/A</strong><span class="stat-note">52-bit value used by the reference formula</span></article>
+        <article class="stat-card"><span class="stat-label">Decimal value</span><strong id="pfHexDecimal">N/A</strong><span class="stat-note">Parsed from those 13 hex characters</span></article>
+        <article class="stat-card"><span class="stat-label">Multiplier from shown hash</span><strong id="pfHashMultiplier">N/A</strong><span class="stat-note">97% RTP reference formula</span></article>
+        <article class="stat-card"><span class="stat-label">Multiplier from entered seeds</span><strong id="pfSeedMultiplier">N/A</strong><span class="stat-note">Derived from recalculated SHA-512</span></article>
+        <article class="stat-card"><span class="stat-label">Server-seed commitment</span><strong id="pfCommitmentStatus">Not provided</strong><span id="pfCommitmentNote" class="stat-note">Optional SHA-256 cross-check</span></article>
+      </div>
+      <p class="disclaimer"><strong>Important:</strong> a hash match verifies that the entered seed chain reproduces the displayed hash. The 97% multiplier calculation is a reference reconstruction; a mismatch alone does not prove cheating. A pre-round commitment only applies if it belongs to this same round.</p>
+    </section>
 
-    <div class="section-label"><span class="step">05</span><span>Experimental crash predictor</span></div>
-    <section class="panel adaptive-panel">
+
+    <div class="section-label" id="experimentalPredictorLabel"><span class="step">08</span><span>Experimental crash predictor</span></div>
+    <section class="panel adaptive-panel" id="experimentalPredictorPanel">
       <div class="estimate-head">
         <div><p class="kicker">EXPERIMENTAL CRASH PREDICTOR</p><h2>Next-round outcome-band estimate</h2><p class="muted">Ranks multiplier bands from past results; it cannot see the next round’s hidden result.</p></div>
         <span class="estimate-status" id="adaptiveModelStatus">WAITING FOR DATA</span>
