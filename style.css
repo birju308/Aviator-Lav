@@ -152,3 +152,18 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 #localMLNote{overflow-wrap:anywhere}
 @media(max-width:700px){.local-ml-head{display:block}.local-ml-head .estimate-status{display:inline-block;margin-top:9px}.local-ml-main{grid-template-columns:1fr 1fr}.local-ml-main>div:first-child{grid-column:1/-1}.local-ml-test{grid-template-columns:1fr}}
 @media(max-width:420px){.local-ml-probs{grid-template-columns:1fr}.local-ml-main{grid-template-columns:1fr}.local-ml-main>div:first-child{grid-column:auto}}
+
+
+/* Numeric ML point estimate and same-round baseline diagnostics */
+.local-ml-point{margin:16px 0;padding:14px;background:#151d27;border:1px solid #4b4b5a;border-radius:11px}
+.local-ml-point-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.local-ml-point-head>div{min-width:180px}
+.local-ml-point-head strong{display:block;margin-top:5px;color:#c6b5ff;font-size:clamp(2rem,5vw,3.1rem);line-height:1.15;letter-spacing:-.04em}
+.local-ml-point-head p{max-width:700px;margin:0;color:var(--muted);font-size:.82rem;line-height:1.6}
+.local-ml-point-test{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0}
+.local-ml-point-test>div{padding:10px;background:#101720;border:1px solid #303c49;border-radius:8px;min-width:0}
+.local-ml-point-test strong{display:block;margin-top:5px;font-size:clamp(.9rem,1.8vw,1.15rem);overflow-wrap:anywhere}
+#localMLNumericExplanation{margin:10px 0 0;line-height:1.6}
+@media(max-width:850px){.local-ml-point-test{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.local-ml-point-head{display:block}.local-ml-point-head p{margin-top:10px}.local-ml-point-test{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.local-ml-point-test{grid-template-columns:1fr}}
