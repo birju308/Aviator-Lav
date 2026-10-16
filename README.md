@@ -58,3 +58,8 @@ The model predicts multiplier *bands*, not exact multiplier/time.
 The predictor includes an explainable sequence model that blends full-sample and recent band frequencies with observed next-band transitions, repeated 2–3 band motifs, and matching run-length contexts when enough past examples exist. It displays a top-ranked outcome band, the historical median among saved values in that band, the current band streak, recent band sequence, and the amount of matching historical evidence. A separate chronological walk-forward evaluation compares this candidate with simple baselines and reserves a later holdout.
 
 All displayed percentages are model-relative scores, not calibrated real-world probabilities. This is a test-mode pattern model and not a validated predictor for independently randomized rounds; it does not reveal the hidden result or estimate a reliable exact crash time/multiplier.
+
+
+## Single-number pattern guess (experimental)
+
+The pattern learner displays a test-mode numeric point guess (e.g. 1.49x or 2.00x) for usability. It prefers the median multiplier observed after matching historical 2–3 band sequences when there are at least three examples; otherwise it falls back to the recent matching-band median or the overall selected-band median. The UI shows which evidence source was used and labels confidence low. This is a historical analogy for test mode, not a calibrated probability, not a forecast derived from hidden round inputs, and not a reliable exact crash prediction.
