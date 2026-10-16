@@ -75,7 +75,10 @@
     } else {
       $("paperLastOutcome").textContent = paperState.lastMessage || "No paper-test rounds scored yet. Start paper test, keep both tabs open, and wait for one new round to sync.";
     }
-    $("paperStartButton").textContent = paperState.active ? "Refresh locked guess" : "Start paper test";
+    $("paperStartButton").textContent = paperState.active
+      ? (pending ? "Guess locked" : "Lock next guess")
+      : "Start paper test";
+    $("paperStartButton").disabled = paperState.active && !!pending;
     $("paperPauseButton").disabled = !paperState.active;
   }
 
@@ -1031,10 +1034,16 @@
     resetVerifierOutput();
   });
   $("paperStartButton").addEventListener("click",()=>{
+    if (paperState.active && paperState.pending) {
+      paperState.lastMessage = "A guess is already locked. Wait for a new single-result sync, or pause the test; this locked estimate cannot be overwritten.";
+      savePaperState();
+      renderPaperTracker();
+      return;
+    }
     paperState.active = true;
     paperState.pending = makePaperForecast(values());
     paperState.lastMessage = paperState.pending
-      ? "Paper test started. This guess is locked for the next single newly synced result."
+      ? "Paper test started. This estimate is locked for the next single newly synced result and cannot be refreshed while pending."
       : "Cannot lock a guess until there is usable history.";
     savePaperState();
     renderPaperTracker();
