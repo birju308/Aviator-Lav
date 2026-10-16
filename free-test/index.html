@@ -24,13 +24,27 @@ nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav button{background:tran
  <div class="brand"><div class="logo">C</div><div><h1>CrashLab <span style="color:#fa4d68">FREE</span></h1><p>Multiplier analyzer · Hash playground</p></div></div>
  <div class="pill"><span class="dot"></span> LOCAL DEMO MODE</div>
 </header>
-<nav aria-label="Sections"><button class="active" data-tab="analyzer">Multiplier lab</button><button data-tab="hash">Seed / hash test</button><button data-tab="about">How it works</button></nav>
+<nav aria-label="Sections"><button class="active" data-tab="analyzer">Multiplier lab</button><button data-tab="hash">Hash & verify</button><button data-tab="about">How it works</button></nav>
 <section class="hero">
  <div class="eyebrow">Free community test build</div>
  <h2>Analyze your rounds.<br><span>Verify hashes.</span> Stay skeptical.</h2>
  <p>A free, browser-based playground inspired by predictor dashboards. Analyze results you enter and calculate cryptographic hashes without subscriptions, sign-in, or sending your data to a server.</p>
 </section>
 <div class="notice"><div aria-hidden="true">⚠</div><div><strong>This does not predict the next live multiplier.</strong> Crash-game outcomes are not reliably forecast by past multipliers or by hashing alone. The demo signal is simulated only, and must not be used to make bets.</div></div>
+
+<section class="panel" id="live-panel" style="margin:18px 0">
+  <div class="section-title"><h3>Live round feed</h3><span class="pill" id="live-connection"><span class="dot"></span> WAITING FOR EXTENSION</span></div>
+  <p class="sub">Real multipliers captured by your Aviator Lab Auto Collector extension while the game tab is open. The feed is local to this browser; this page does not query the casino or predict unrevealed rounds.</p>
+  <div class="stats" style="margin:10px 0 16px">
+    <div class="stat"><label>CAPTURED HERE</label><strong id="live-count">0</strong><small>Unique round records</small></div>
+    <div class="stat"><label>LATEST OBSERVED</label><strong id="live-latest">—</strong><small>Already completed result</small></div>
+    <div class="stat"><label>LIVE AVG</label><strong id="live-avg">—</strong><small>Captured history only</small></div>
+    <div class="stat"><label>LAST GAME ACTIVITY</label><strong id="live-time" style="font-size:16px">—</strong><small id="live-total">Extension records not received</small></div>
+  </div>
+  <div class="row" style="margin-bottom:12px"><button class="primary" id="use-live">Analyze captured rounds</button><button id="export-live">Export live history CSV</button></div>
+  <div class="tablewrap"><table class="mini-table"><thead><tr><th>Round ID</th><th>Multiplier</th><th>Captured / observed</th></tr></thead><tbody id="live-body"><tr><td colspan="3" class="muted">Waiting for the extension to send captured rounds. Keep the extension enabled and open this page.</td></tr></tbody></table></div>
+  <p class="smallprint" id="live-detail">Connection not verified yet. If it remains waiting, confirm that Aviator Lab Auto Collector v0.12 is enabled in Chrome.</p>
+</section>
 <section id="tab-analyzer">
  <div class="stats">
   <div class="stat"><label>ROUNDS ENTERED</label><strong id="stat-count">0</strong><small>From your input</small></div>
@@ -68,6 +82,24 @@ nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav button{background:tran
  </div>
 </section>
 <section id="tab-hash" class="hidden">
+
+  <div class="panel" style="margin-bottom:16px">
+   <div class="section-title"><h3>Completed-round SHA verifier</h3><span class="count" id="verify-capture-status">Waiting for captured fairness data</span></div>
+   <p class="sub">Checks a finished round by recalculating SHA-512 from the revealed server seed and three client seeds, then comparing the supplied hash and displayed multiplier. If the extension captures the fairness details panel, fields fill automatically.</p>
+   <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px">
+    <div><label class="field" for="verify-server">Revealed server seed</label><input id="verify-server" autocomplete="off" placeholder="Exact server seed text"></div>
+    <div><label class="field" for="verify-multiplier">Finished multiplier (e.g. 2.78)</label><input id="verify-multiplier" inputmode="decimal" placeholder="2.78"></div>
+    <div><label class="field" for="verify-client1">Client seed 1</label><input id="verify-client1" autocomplete="off"></div>
+    <div><label class="field" for="verify-client2">Client seed 2</label><input id="verify-client2" autocomplete="off"></div>
+    <div><label class="field" for="verify-client3">Client seed 3</label><input id="verify-client3" autocomplete="off"></div>
+    <div><label class="field" for="verify-commitment">Optional server-seed SHA-256 commitment</label><input id="verify-commitment" autocomplete="off" placeholder="64 hex characters"></div>
+   </div>
+   <label class="field" for="verify-shown-hash">Combined SHA-512 hash from the finished round</label><textarea id="verify-shown-hash" style="min-height:76px" spellcheck="false" placeholder="128 hexadecimal characters"></textarea>
+   <div class="row" style="margin-top:10px"><button class="primary" id="verify-btn">Verify finished round</button><button id="verify-clear">Clear fields</button></div>
+   <div class="output" id="verify-result" style="margin-top:12px">Ready. This verifies completed-round data only; it cannot reveal the next round's hidden server seed.</div>
+   <label class="field">Recalculated SHA-512</label><div class="output" id="verify-digest">—</div>
+   <p class="smallprint">A hash is a one-way cryptographic digest, not a decryption key. If the future server seed remains secret, this calculation cannot forecast the next multiplier.</p>
+  </div>
  <div class="grid">
   <div class="panel"><h3>SHA hash playground</h3><p class="sub">Calculate the real SHA-256 or SHA-512 digest of text you provide. Hashes are one-way digests, not decryption keys.</p>
    <label class="field" for="hash-input">Text / seed / string to hash</label><textarea id="hash-input" placeholder="Paste test text here"></textarea>
@@ -88,11 +120,11 @@ nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav button{background:tran
   <div class="tablewrap"><table class="mini-table"><thead><tr><th>Feature</th><th>Status</th><th>What it means</th></tr></thead><tbody>
    <tr><td>Paste / analyze past multipliers</td><td class="ok">Working</td><td>Counts, mean, median, shares, and a simple chart of entered values.</td></tr>
    <tr><td>SHA-256 / SHA-512</td><td class="ok">Working</td><td>Browser's Web Crypto API calculates hashes of the exact text you enter.</td></tr>
-   <tr><td>Demo result card</td><td class="ok">Simulated</td><td>Random interface-test value only. It is not from a game or a prediction engine.</td></tr>
+   <tr><td>Live history via Chrome extension</td><td class="ok">Available when connected</td><td>Shows actual completed multipliers captured by your enabled extension while the game tab is open.</td></tr><tr><td>Completed-round fairness check</td><td class="ok">Working locally</td><td>Recalculates SHA-512 and optional SHA-256 commitment from revealed data.</td></tr><tr><td>Demo result card</td><td class="ok">Simulated</td><td>Interface-test randomness only; it is not from the game or a prediction engine.</td></tr>
    <tr><td>Connect to a casino / predict live result</td><td class="bad">Not included</td><td>This page does not log into, scrape, control, or predict any gambling website.</td></tr>
   </tbody></table></div>
   <h3 style="margin-top:22px">Why history is not a prediction</h3><p class="muted">A high or low result in a previous round is not reliable evidence that the next round will be high or low. A hash function also does not decrypt a secret seed. If a game exposes a verifiable fairness protocol, the correct seed and round data can help verify completed rounds—but that is different from knowing an unrevealed future outcome.</p>
-  <h3 style="margin-top:22px">Privacy</h3><p class="muted">All calculations on this page run locally in your browser. This standalone page does not ask for a casino password, payment, activation code, or account connection.</p>
+  <h3 style="margin-top:22px">Privacy</h3><p class="muted">All calculations run in your browser. With the Aviator Lab Auto Collector extension enabled, completed visible game history and fairness-panel text can sync locally from Chrome extension storage. This page does not ask for your casino password, payment, activation code, or account login.</p>
  </div>
 </section>
 <div class="footer">CrashLab Free · Independent demo · No paid predictor model included · No betting advice</div>
@@ -124,7 +156,7 @@ nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav button{background:tran
     bands.forEach(([name,fn])=>{const c=all.filter(fn).length,tr=document.createElement("tr");tr.innerHTML="<td>"+name+"</td><td>"+c+"</td><td>"+(100*c/n).toFixed(1)+"%</td>";$("bands").appendChild(tr);});
   }
   $("analyze").addEventListener("click",render);
-  $("sample").addEventListener("click",()=>{$("rounds").value=sample.join(", ");render();});
+  $("sample").addEventListener("click",()=>{$("rounds").value="";render();});
   $("clear").addEventListener("click",()=>{$("rounds").value="";render();});
   document.querySelectorAll("nav button").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b===btn));["analyzer","hash","about"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==btn.dataset.tab));}));
   $("demo-btn").addEventListener("click",()=>{const v=(1+Math.pow(Math.random(),2)*24).toFixed(2);$("demo-value").textContent=v+"×";$("demo-label").textContent="SIMULATED ONLY · NOT A FORECAST";});
@@ -140,7 +172,136 @@ nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav button{background:tran
   $("hash-clear").addEventListener("click",()=>{$("hash-input").value="";lastDigest="";$("hash-output").textContent="Digest will appear here.";$("compare-result").textContent="No comparison run yet.";});
   $("copy-hash").addEventListener("click",async()=>{if(!lastDigest){$("hash-status").textContent="Calculate a digest first.";return;}try{await navigator.clipboard.writeText(lastDigest);$("hash-status").textContent="Copied.";}catch(e){$("hash-status").textContent="Select and copy the digest manually."; }});
   $("compare-commitment").addEventListener("click",()=>{const expected=$("commitment").value.trim().toLowerCase().replace(/^0x/,"");const actual=lastDigest.toLowerCase();if(!actual){$("compare-result").textContent="Calculate a hash first.";return;}if($("algorithm").value!=="SHA-256"){$("compare-result").textContent="Select SHA-256 and calculate the digest first.";return;}if(!/^[a-f0-9]{64}$/.test(expected)){$("compare-result").textContent="Enter a valid 64-character SHA-256 hex commitment.";return;}const ok=actual===expected;$("compare-result").textContent=ok?"MATCH — the entered text hashes to this commitment.":"NO MATCH — the digest does not equal the supplied commitment."; $("compare-result").style.color=ok?"#47d7a0":"#ff8293";});
-  // Load an editable example so the dashboard is immediately testable.
+  
+  // Real data bridge: Chrome extension v0.12 posts locally captured game rounds to this page.
+  const LIVE_STORE = "crashlab-live-rounds-v1";
+  let liveRows = [];
+  let extensionTotal = 0;
+  let extensionLastAt = null;
+  let extensionConnected = false;
+  try {
+    const savedLive = JSON.parse(localStorage.getItem(LIVE_STORE) || "[]");
+    if (Array.isArray(savedLive)) liveRows = savedLive.filter(r => r && typeof r.id === "string" && Number.isFinite(Number(r.multiplier)) && Number(r.multiplier) >= 1).slice(-5000);
+  } catch (_) {}
+  function showLive() {
+    const rows = liveRows.slice().sort((a,b) => Date.parse(a.timestamp || 0) - Date.parse(b.timestamp || 0));
+    $("live-count").textContent = rows.length.toLocaleString();
+    $("live-latest").textContent = rows.length ? fmt(Number(rows[rows.length-1].multiplier)) : "—";
+    $("live-avg").textContent = rows.length ? fmt(rows.reduce((sum,r)=>sum+Number(r.multiplier),0)/rows.length) : "—";
+    $("live-time").textContent = extensionLastAt ? new Date(extensionLastAt).toLocaleTimeString() : "—";
+    $("live-total").textContent = extensionConnected ? extensionTotal.toLocaleString() + " record(s) in extension storage" : "Extension records not received";
+    $("live-connection").innerHTML = '<span class="dot"></span> ' + (extensionConnected ? "EXTENSION CONNECTED" : "WAITING FOR EXTENSION");
+    const body = $("live-body");
+    body.replaceChildren();
+    rows.slice(-30).reverse().forEach(r => {
+      const tr = document.createElement("tr");
+      const id = document.createElement("td"); id.textContent = r.roundId || r.id.slice(0,18);
+      const mult = document.createElement("td"); mult.textContent = fmt(Number(r.multiplier)); mult.style.color = Number(r.multiplier) < 2 ? "#47d7a0" : "#ff8798";
+      const time = document.createElement("td"); const ts = Date.parse(r.timestamp || ""); time.textContent = Number.isFinite(ts) ? new Date(ts).toLocaleString() : "time unavailable";
+      tr.append(id,mult,time); body.appendChild(tr);
+    });
+    if (!rows.length) {
+      const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=3;td.className="muted";
+      td.textContent=extensionConnected ? "Extension connected; waiting for captured game results." : "Waiting for the extension to send captured rounds. Keep the extension enabled and open this page.";
+      tr.appendChild(td);body.appendChild(tr);
+    }
+    $("live-detail").textContent = extensionConnected
+      ? "Connected to the browser extension. " + rows.length + " unique result(s) are available on this page. Capture requires the game tab to be open and visible to the extension."
+      : "Connection not verified yet. If it remains waiting, confirm that Aviator Lab Auto Collector v0.12 is enabled in Chrome.";
+  }
+  function acceptLiveRounds(message) {
+    extensionConnected = true;
+    extensionTotal = Number(message.totalCollected || 0);
+    extensionLastAt = message.lastCollectedAt || extensionLastAt;
+    const byId = new Map(liveRows.map(r => [r.id,r]));
+    (Array.isArray(message.rounds) ? message.rounds : []).forEach(r => {
+      if (!r || typeof r.id !== "string") return;
+      const multiplier = Number(r.multiplier);
+      if (!Number.isFinite(multiplier) || multiplier < 1 || multiplier > 1000000) return;
+      byId.set(r.id,{id:r.id,roundId:r.roundId || "",multiplier:multiplier,timestamp:r.timestamp || new Date().toISOString()});
+    });
+    liveRows = Array.from(byId.values()).sort((a,b)=>Date.parse(a.timestamp||0)-Date.parse(b.timestamp||0)).slice(-5000);
+    try { localStorage.setItem(LIVE_STORE,JSON.stringify(liveRows)); } catch (_) {}
+    showLive();
+    const ids = Array.isArray(message.rounds) ? message.rounds.map(r => r && r.id).filter(Boolean) : [];
+    if (ids.length) window.postMessage({source:"aviator-lab-page-v06",type:"AUTO_SYNC_ACK",ids:ids},location.origin);
+  }
+  function hashHex(algorithm, value) {
+    return crypto.subtle.digest(algorithm,new TextEncoder().encode(value)).then(buf =>
+      Array.from(new Uint8Array(buf),b=>b.toString(16).padStart(2,"0")).join(""));
+  }
+  function resultFromAviatorHash(hash) {
+    const prefix=hash.slice(0,13).toLowerCase(), h=BigInt("0x"+prefix), e=1n<<52n;
+    if(h>=e) throw new Error("Hash prefix is outside the expected 52-bit range.");
+    let cents=(97n*e)/(e-h); if(cents<100n)cents=100n;
+    return {prefix:prefix,cents:cents,text:(cents/100n).toString()+"."+(cents%100n).toString().padStart(2,"0")+"x"};
+  }
+  async function verifyFinishedRound() {
+    const out=$("verify-result"), digestOut=$("verify-digest"), btn=$("verify-btn");
+    btn.disabled=true;btn.textContent="Checking locally…";out.style.color="#c9d3ef";
+    try {
+      const server=$("verify-server").value.trim();
+      const clients=[$("verify-client1").value.trim(),$("verify-client2").value.trim(),$("verify-client3").value.trim()];
+      const shown=$("verify-shown-hash").value.replace(/\s+/g,"").toLowerCase();
+      const mult=Number($("verify-multiplier").value);
+      const commitment=$("verify-commitment").value.replace(/\s+/g,"").toLowerCase();
+      if(!server || clients.some(s=>!s)) throw new Error("Enter the exact revealed server seed and all three client seeds.");
+      if(!/^[0-9a-f]{128}$/.test(shown)) throw new Error("Combined SHA-512 must be 128 hexadecimal characters.");
+      if(!Number.isFinite(mult)||mult<1||mult>1000000) throw new Error("Enter the finished multiplier shown by the game.");
+      if(commitment && !/^[0-9a-f]{64}$/.test(commitment)) throw new Error("Optional commitment must be 64 hexadecimal characters.");
+      const computed=await hashHex("SHA-512",server+clients.join(""));
+      digestOut.textContent=computed;
+      const shownCalc=resultFromAviatorHash(shown), computedCalc=resultFromAviatorHash(computed);
+      const hashMatches=computed===shown;
+      const resultMatches=shownCalc.cents===BigInt(Math.round(mult*100));
+      let message="SHA-512: "+(hashMatches?"EXACT MATCH":"MISMATCH")+"\nHash-derived multiplier from shown hash: "+shownCalc.text+" ("+(resultMatches?"matches":"differs from")+" the displayed "+mult.toFixed(2)+"x)\nSeed-derived multiplier from recalculated hash: "+computedCalc.text+"\nThis is a completed-round check, not a next-round prediction.";
+      let allOk=hashMatches&&resultMatches;
+      if(commitment){const ch=await hashHex("SHA-256",server), cm=ch===commitment;message+="\nServer commitment SHA-256: "+(cm?"MATCH":"MISMATCH");allOk=allOk&&cm;}
+      out.textContent=message;out.style.color=allOk?"#47d7a0":"#ff8798";
+    } catch(e){out.textContent=e.message;out.style.color="#ff8798";digestOut.textContent="—";}
+    finally {btn.disabled=false;btn.textContent="Verify finished round";}
+  }
+  $("verify-btn").addEventListener("click",verifyFinishedRound);
+  $("verify-clear").addEventListener("click",()=>{
+    ["verify-server","verify-multiplier","verify-client1","verify-client2","verify-client3","verify-commitment","verify-shown-hash"].forEach(id=>$(id).value="");
+    $("verify-result").textContent="Ready. This verifies completed-round data only; it cannot reveal the next round's hidden server seed.";
+    $("verify-digest").textContent="—";$("verify-result").style.color="#c9d3ef";
+  });
+  $("use-live").addEventListener("click",()=>{
+    if(!liveRows.length){$("input-note").textContent="No captured game results yet. Keep the extension enabled and open the game tab.";return;}
+    $("rounds").value=liveRows.map(r=>Number(r.multiplier).toFixed(2)).join(", ");render();
+    $("input-note").textContent="Loaded "+liveRows.length+" captured extension result(s). All output describes history, not a prediction.";
+    document.getElementById("tab-analyzer").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  $("export-live").addEventListener("click",()=>{
+    if(!liveRows.length){$("live-detail").textContent="No live results to export yet.";return;}
+    const esc=s=>'"'+String(s??"").replace(/"/g,'""')+'"';
+    const csv=["id,round_id,multiplier,timestamp"].concat(liveRows.map(r=>[r.id,r.roundId,r.multiplier,r.timestamp].map(esc).join(","))).join("\r\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="crashlab-captured-history.csv";a.click();URL.revokeObjectURL(url);
+  });
+  window.addEventListener("message",event=>{
+    if(event.source!==window||event.origin!==location.origin)return;
+    const m=event.data;
+    if(!m||m.source!=="aviator-lab-extension-v12")return;
+    if(m.type==="AUTO_ROUND_SYNC"){acceptLiveRounds(m);return;}
+    if(m.type==="AUTO_FAIRNESS_SYNC"){
+      const ackIds=Array.isArray(m.rounds)?m.rounds.map(r=>r&&r.id).filter(Boolean):[];
+      if(ackIds.length)window.postMessage({source:"aviator-lab-page-v07",type:"AUTO_FAIRNESS_ACK",ids:ackIds},location.origin);
+      const records=(Array.isArray(m.rounds)?m.rounds:[]).filter(r=>r&&typeof r.serverSeed==="string"&&Array.isArray(r.clientSeeds)&&r.clientSeeds.length===3&&typeof r.hash==="string"&&Number.isFinite(Number(r.multiplier)));
+      if(records.length){
+        records.sort((a,b)=>Date.parse(a.capturedAt||0)-Date.parse(b.capturedAt||0));
+        const r=records[records.length-1];
+        $("verify-server").value=r.serverSeed;$("verify-client1").value=r.clientSeeds[0];$("verify-client2").value=r.clientSeeds[1];$("verify-client3").value=r.clientSeeds[2];
+        $("verify-multiplier").value=String(r.multiplier);$("verify-shown-hash").value=r.hash;$("verify-commitment").value=r.serverCommitment||"";
+        $("verify-capture-status").textContent="Captured finished round "+(r.roundId||"(ID unavailable)")+" · auto-checking";
+        verifyFinishedRound();
+      } else if(m.status&&m.status.message) $("verify-capture-status").textContent="Extension: "+m.status.message;
+    }
+  });
+  showLive();
+  
+  // Load an empty analysis area; actual rounds arrive from the Chrome extension.
   $("rounds").value=sample.join(", ");render();
 })();
 </script>
