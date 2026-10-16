@@ -203,11 +203,54 @@
     for(let b=1;b<4;b++) if(scores[b]>scores[top]) top=b;
     const valuesInBand=history.filter(v=>outcomeBand(v)===top);
     const bandMedian=valuesInBand.length?median(valuesInBand):NaN;
+
+    // Make a single numeric test guess, with an explicit evidence source.
+    // Prefer the median result after an exact matching 2- or 3-band history motif.
+    let conditionalValues=[], conditionalLength=0;
+    for(let length=Math.min(3,n-1);length>=2;length--) {
+      const suffix=seq.slice(n-length);
+      const candidates=[];
+      for(let i=0;i+length<n;i++) {
+        let match=true;
+        for(let j=0;j<length;j++) {
+          if(seq[i+j]!==suffix[j]) {match=false;break;}
+        }
+        if(match && outcomeBand(history[i+length])===top) candidates.push(history[i+length]);
+      }
+      if(candidates.length>=3) {
+        conditionalValues=candidates;
+        conditionalLength=length;
+        break;
+      }
+    }
+    const recentInBand=history.slice(-50).filter(v=>outcomeBand(v)===top);
+    let numericPool, numericSource;
+    if(conditionalValues.length>=3) {
+      numericPool=conditionalValues;
+      numericSource=`median of ${conditionalValues.length} past results after the same ${conditionalLength}-band sequence`;
+    } else if(recentInBand.length>=4) {
+      numericPool=recentInBand;
+      numericSource=`median of ${recentInBand.length} matching-band results in the last ${Math.min(50,n)} rounds`;
+    } else {
+      numericPool=valuesInBand;
+      numericSource=`median of ${valuesInBand.length} saved results in the selected band`;
+    }
+    let numericGuess=numericPool.length?median(numericPool):NaN;
+    const bandLimits=[[1,1.99],[2,4.99],[5,9.99],[10,Infinity]][top];
+    if(Number.isFinite(numericGuess)) {
+      numericGuess=Math.max(bandLimits[0],Math.min(bandLimits[1],numericGuess));
+      numericGuess=Math.round(numericGuess*100)/100;
+    }
+    const numericConfidence=n<50?"LOW · small sample":
+      conditionalValues.length>=5?"LOW · repeated pattern found, not validated":
+      "LOW · historical-band fallback";
     const support=(transitionCount>=3?transitionCount:0)+(motif?motif.hits:0)+(runHits>=3?runHits:0);
     return {
       top,scores,names,support,motifLength:motif?.length||0,motifHits:motif?.hits||0,
       transitionCount,currentStreak,recentSequence:seq.slice(-4).map(b=>names[b]),
-      lastBand,bandMedian,status:n<20?"BUILDING SAMPLE":n<100?"EARLY SAMPLE":"PATTERN TEST",
+      lastBand,bandMedian,numericGuess,numericSource,numericConfidence,
+      conditionalLength,conditionalMatches:conditionalValues.length,
+      status:n<20?"BUILDING SAMPLE":n<100?"EARLY SAMPLE":"PATTERN TEST",
       runHits,cappedRun
     };
   }
@@ -217,6 +260,14 @@
     $("patternModelStatus").textContent=model.status;
     $("patternGuessBand").textContent=vals.length?model.names[model.top]:"N/A";
     $("patternGuessMedian").textContent=Number.isFinite(model.bandMedian)?fmt(model.bandMedian):"N/A";
+    $("patternGuessMultiplier").textContent=Number.isFinite(model.numericGuess)?fmt(model.numericGuess):"N/A";
+    $("patternGuessConfidence").textContent=vals.length?model.numericConfidence:"WAITING FOR DATA";
+    const numericReason=$("patternNumericReasoning");
+    if(numericReason) {
+      numericReason.textContent=vals.length
+        ? `My test-mode guess is ${fmt(model.numericGuess)} because the strongest history-only band score is ${model.names[model.top]}. The point value comes from the ${model.numericSource}. Recent band sequence: ${model.recentSequence.join(" → ")}; current band streak: ${model.currentStreak}. This is a single, uncertain historical analogy—not a known future crash point.`
+        : "Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.";
+    }
     $("patternGuessScore").textContent=vals.length?`${(model.scores[model.top]*100).toFixed(1)}%`:"N/A";
     $("patternMotifHits").textContent=model.motifHits?String(model.motifHits):"0";
     $("patternMotifNote").textContent=model.motifHits?`matching ${model.motifLength}-band motifs`:"No repeated motif with 2+ matches";
