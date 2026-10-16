@@ -106,3 +106,11 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 .pattern-learner-box .disclaimer{margin-bottom:0}
 @media(max-width:750px){.pattern-learner-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pattern-evidence-grid{grid-template-columns:1fr}}
 @media(max-width:480px){.pattern-learner-heading{display:block}.pattern-learner-heading .estimate-status{display:inline-block;margin-top:10px}}
+
+
+/* Single-number, explainable test guess */
+.point-guess-card{margin:14px 0 18px;padding:16px 18px;border:1px solid #58414c;border-radius:12px;background:linear-gradient(125deg,#241e28,#151d27 72%);box-shadow:inset 3px 0 0 #ff7184}
+.point-guess-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.guess-pill{border:1px solid #5e4a53;border-radius:999px;padding:5px 9px;color:#ffb3a5;font-size:.67rem;font-weight:800;letter-spacing:.04em}
+#patternGuessMultiplier{display:block;margin:8px 0 4px;font-size:clamp(2.5rem,6vw,4rem);letter-spacing:-.04em;line-height:1.1;color:#ff8b83}
+#patternNumericReasoning{margin:8px 0 0;color:var(--text);font-size:.88rem;line-height:1.65;max-width:960px}
