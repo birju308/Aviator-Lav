@@ -100,6 +100,20 @@
             <div><div class="local-ml-prob-head"><span>5.00x–9.99x</span><strong id="localMLP2">N/A</strong></div><div class="meter"><div id="localMLBar2"></div></div></div>
             <div><div class="local-ml-prob-head"><span>10.00x+</span><strong id="localMLP3">N/A</strong></div><div class="meter"><div id="localMLBar3"></div></div></div>
           </div>
+          <section class="local-ml-point" aria-label="Machine learning numeric estimate">
+            <div class="local-ml-point-head">
+              <div><span class="stat-label">ML numeric estimate · experimental only</span><strong id="localMLNumericGuess">N/A</strong></div>
+              <p class="muted">A separate supervised regression model trained on prior rounds. Its fixed chronological holdout is scored against a simple rolling-50 median on the exact same future results.</p>
+            </div>
+            <div class="local-ml-point-test">
+              <div><span class="stat-label">ML median absolute error</span><strong id="localMLPointMedianError">N/A</strong></div>
+              <div><span class="stat-label">Baseline median absolute error</span><strong id="localMLPointBaselineMedianError">N/A</strong></div>
+              <div><span class="stat-label">ML mean absolute error</span><strong id="localMLPointMAE">N/A</strong></div>
+              <div><span class="stat-label">Baseline mean absolute error</span><strong id="localMLPointBaselineMAE">N/A</strong></div>
+              <div><span class="stat-label">Median error vs baseline</span><strong id="localMLPointDelta">N/A</strong></div>
+            </div>
+            <p id="localMLNumericExplanation" class="analysis-output">Collect more completed rounds to train and validate a numeric machine-learning estimate.</p>
+          </section>
           <div class="local-ml-test">
             <div><span class="stat-label">Frozen chronological holdout</span><strong id="localMLHoldout">N/A</strong></div>
             <div><span class="stat-label">Same-round baseline</span><strong id="localMLBaseline">N/A</strong></div>
@@ -109,7 +123,7 @@
           <p id="localMLNote" class="hint">Model scores are not calibrated probabilities and do not reveal the next hidden result.</p>
         </section>
         <div class="point-guess-card">
-          <div class="point-guess-top"><span class="stat-label">Numeric point estimate · rolling median</span><span class="guess-pill" id="patternGuessConfidence">WAITING FOR DATA</span></div>
+          <div class="point-guess-top"><span class="stat-label">Recent rolling median baseline · not ML</span><span class="guess-pill" id="patternGuessConfidence">WAITING FOR DATA</span></div>
           <strong id="patternGuessMultiplier">N/A</strong>
           <p id="patternNumericReasoning">Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.</p>
         </div>
