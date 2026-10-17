@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#10151d">
   <title>Aviator Lab | Crash Estimate</title>
-  <link rel="stylesheet" href="style.css?v=0.17.0">
+  <link rel="stylesheet" href="style.css?v=0.18.0">
 </head>
 <body>
   <main class="app-shell">
@@ -85,11 +85,12 @@
             <p id="paperNextReason">Waiting for enough saved rounds to lock the first no-stake estimate.</p>
           </div>
           <div class="pattern-learner-grid paper-metrics">
-            <article class="stat-card"><span class="stat-label">Scored rounds</span><strong id="paperScoredCount">0</strong><span class="stat-note">Adaptive-window forecasts only</span></article>
+            <article class="stat-card"><span class="stat-label">Scored rounds</span><strong id="paperScoredCount">0</strong><span class="stat-note">Run-length predictor forecasts only</span></article>
             <article class="stat-card"><span class="stat-label">Band accuracy</span><strong id="paperBandRate">N/A</strong><span class="stat-note">Same multiplier band</span></article>
             <article class="stat-card"><span class="stat-label">Median absolute error</span><strong id="paperMedianError">N/A</strong><span class="stat-note">Point-guess error</span></article>
             <article class="stat-card"><span class="stat-label">Within ±0.25x</span><strong id="paperNearRate">N/A</strong><span class="stat-note">Point-guess tolerance</span></article>
             <article class="stat-card"><span class="stat-label">Rolling-50 baseline error</span><strong id="paperBaselineError">N/A</strong><span id="paperBaselineNote" class="stat-note">Comparable rounds</span></article>
+            <article class="stat-card"><span class="stat-label">Streak-signal hit rate</span><strong id="paperRunPatternRate">N/A</strong><span id="paperRunPatternNote" class="stat-note">Directional run-pattern calls only</span></article>
           </div>
           <div class="paper-controls">
             <button id="paperStartButton" class="button primary" type="button">Start paper test</button>
@@ -232,6 +233,12 @@
           <div class="pattern-evidence"><span class="stat-label">Last 4 bands</span><strong id="patternRecentSequence">N/A</strong></div>
           <div class="pattern-evidence"><span class="stat-label">After current band</span><strong id="patternTransitionEvidence">N/A</strong></div>
         </div>
+        <section class="pattern-evidence-grid" aria-label="Run-length pattern model">
+          <div class="pattern-evidence"><span class="stat-label">Recent B/P run sequence</span><strong id="runPatternSequence">N/A</strong></div>
+          <div class="pattern-evidence"><span class="stat-label">Run-pattern lean</span><strong id="runPatternSignal">N/A</strong><span class="stat-note" id="runPatternScore">Historical score, not odds</span></div>
+          <div class="pattern-evidence"><span class="stat-label">Matching run context</span><strong id="runPatternSupport">N/A</strong></div>
+        </section>
+        <p id="runPatternValidation" class="analysis-output">Collect completed rounds to replay run-length patterns chronologically.</p>
         <div id="patternExplanation" class="analysis-output">Collect completed rounds to let the pattern learner inspect the sequence.</div>
         <p class="disclaimer"><strong>Test mode only:</strong> this learns visible patterns from saved outcomes, not hidden game inputs. The candidate band and midpoint can be wrong; do not treat the score as a real probability or betting signal. Exact crash time/multiplier cannot be reliably predicted.</p>
       </div>
@@ -307,6 +314,6 @@
     </section>
     <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
-  <script src="script.js?v=0.17.0"></script>
+  <script src="script.js?v=0.18.0"></script>
 </body>
 </html>
