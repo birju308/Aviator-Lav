@@ -36,7 +36,7 @@ The **Remove auto-synced results (N)** button removes only records tagged as Chr
 
 ## Current visible features
 
-The experimental AI pattern learner is visible in the page and refreshes when saved history changes. It includes a transparent sequence/streak model, an in-browser logistic-regression classifier, a numeric regression estimate, a frequency-based candidate set, chronological walk-forward comparison, and a later holdout compared with a simple baseline. A shortcut beside the historical pattern snapshot jumps directly to the learner. All model scores and numeric estimates remain experimental and uncalibrated; the panel explicitly reports when the model does not demonstrate an edge over the baseline. The paper tracker remains no-stake only.
+The experimental AI pattern learner is visible in the page and refreshes when saved history changes. It includes a transparent sequence/streak model, an in-browser logistic-regression classifier, a frequency-based band candidate set, and a selected rolling-median point estimator. The point estimator chooses a 10–300-round lookback using the early chronological development segment, then evaluates it on a later holdout against the rolling-50 median baseline. The no-stake paper tracker locks the selected-window guess before a newly synced completed result and scores it against the same baseline. Classifier and point estimates remain experimental; no result is presented as a guaranteed crash prediction.
 
 ## Completed-round Provably Fair verifier
 
