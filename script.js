@@ -1010,7 +1010,7 @@
     put("runLengthNextClass",active?(run.forecastType==="P"?"P · next round ≥ 2.00x":"B · next round < 2.00x"):"N/A");
     const prob=run.forecastType==="P"?run.probability:1-run.probability,baseProb=run.forecastType==="P"?run.baselineProbability:1-run.baselineProbability;
     put("runLengthNextProbability",active?(prob*100).toFixed(1)+"%":"N/A");put("runLengthNextBaseline",active?(baseProb*100).toFixed(1)+"% for same category":"N/A");
-    put("runLengthNextSupport",run.support?run.support+" matches · "+run.depth+"-run context":"No context met 8-match threshold; overall prior used");
+    put("runLengthNextSupport",run.support?run.support+" matches · "+run.depth+"-run context: "+(run.matchedContext||"pattern unavailable").split("|").join(" → "):"No context met 8-match threshold; overall prior used");
     put("runLengthLengthGuess",active?run.runLengthGuess:"N/A");put("runLengthLengthSupport",active?run.runLengthSupport+" eligible runs · "+run.runLengthContextSupport+" contextual match(es)":"N/A");
     for(const cat of ["1","2","3","4+"]){const node=$("runLengthLen"+(cat==="4+"?"4":cat));if(node)node.textContent=active&&Number.isFinite(d[cat])?(100*d[cat]).toFixed(1)+"%":"N/A";const bn=$("runLengthBase"+(cat==="4+"?"4plus":cat));if(bn)bn.textContent=active&&Number.isFinite(base[cat])?"baseline "+(100*base[cat]).toFixed(1)+"%":"";}
     put("runLengthRecentVsOverall",active?"P share · last "+Math.min(50,n)+" rounds: "+(100*run.recentPayRate).toFixed(1)+"%; smoothed overall: "+(100*run.baselineProbability).toFixed(1)+"%":"Need completed rounds.");
