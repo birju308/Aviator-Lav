@@ -27,14 +27,22 @@
 
   function makePaperForecast(history, pointEstimate) {
     if (!history.length) return null;
-    const model = calculatePatternGuess(history);
+    const runPattern = calculateRunLengthSignal(history);
+    const model = calculatePatternGuess(history, runPattern);
     const point = pointEstimate || selectAdaptivePointEstimate(history);
     if (!Number.isFinite(point.value)) return null;
     return {
       point: point.value,
       baselinePoint: median(history.slice(-Math.min(50, history.length))),
       lookbackWindow: point.window,
-      modelVersion: "adaptive-window-v1",
+      modelVersion: "streak-run-v1",
+      patternVersion: "run-length-v1",
+      runSignal: runPattern.signal,
+      runPatternScore: runPattern.probability,
+      runPatternBaseline: runPattern.baselineProbability,
+      runPatternContext: runPattern.context,
+      runPatternSupport: runPattern.support,
+      runPatternDepth: runPattern.depth,
       band: model.top,
       bandLabel: model.names[model.top],
       modelScore: model.scores[model.top],
@@ -54,11 +62,14 @@
     $("paperStatus").textContent = paperState.active ? "PAPER TEST ACTIVE" : "PAUSED";
     $("paperNextGuess").textContent = pending ? fmt(pending.point) : (paperState.active ? "Waiting for data" : "Not started");
     $("paperNextReason").textContent = pending
-      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. ${pending.modelVersion === "adaptive-window-v1" ? `Adaptive estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the baseline comparator.` : "This one forecast was already locked before the adaptive update; it will score as a legacy 50-round baseline."} Top band: ${pending.bandLabel}; sequence: ${(pending.recentSequence||[]).join(" → ")}. Relative band score ${(pending.modelScore*100).toFixed(1)}% is not calibrated odds.`
+      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. ${pending.modelVersion === "streak-run-v1" ? `Adaptive point estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the numeric baseline.` : "This forecast was locked by an earlier model version."} Top band: ${pending.bandLabel}; recent bands: ${(pending.recentSequence||[]).join(" → ")}. Run context: ${pending.runPatternContext||"not recorded"}; streak signal: ${pending.runSignal==="P"?"P · 2x+ lean":pending.runSignal==="B"?"B · below-2x lean":"no clear lean"}. Historical run score ${(Number.isFinite(pending.runPatternScore)?pending.runPatternScore:0.5)*100}% is not calibrated odds.`
       : "Start paper test to lock a forecast before the next newly synced result.";
     const allResults = paperState.results;
     // Do not mix pre-upgrade rolling-50 guesses into the adaptive-window model's metrics.
-    const results = allResults.filter(r => r && r.modelVersion === "adaptive-window-v1");
+    const results = allResults.filter(r => r && r.modelVersion === "streak-run-v1");
+    const runPatternScores = allResults.filter(r => r && r.patternVersion === "run-length-v1");
+    const runPatternCalls = runPatternScores.filter(r => (r.runSignal === "P" || r.runSignal === "B") && typeof r.runSignalHit === "boolean");
+    const runPatternHits = runPatternCalls.filter(r => r.runSignalHit).length;
     const bandHits = results.filter(r => r.bandHit).length;
     const nearHits = results.filter(r => r.absError <= 0.25).length;
     const errors = results.map(r => r.absError).sort((a,b)=>a-b);
@@ -71,6 +82,10 @@
     $("paperNearRate").textContent = results.length ? pct(nearHits,results.length) : "N/A";
     $("paperBaselineError").textContent = Number.isFinite(baselineMedErr) ? fmt(baselineMedErr) : "N/A";
     $("paperBaselineNote").textContent = baselineErrors.length ? `${baselineErrors.length} comparable round(s)` : "Starts with new test rounds";
+    $("paperRunPatternRate").textContent = runPatternCalls.length ? pct(runPatternHits,runPatternCalls.length) : "N/A";
+    $("paperRunPatternNote").textContent = runPatternCalls.length
+      ? `${runPatternHits}/${runPatternCalls.length} directional signal(s) · ${pct(runPatternCalls.length,runPatternScores.length)} of scored rounds`
+      : "No directional signals scored yet";
     if (results.length) {
       const last = results[results.length-1];
       const baselineText = Number.isFinite(last.baselineAbsError)
@@ -113,7 +128,17 @@
       observedAt: timestamp || new Date().toISOString(),
       sampleSize: pending.sampleSize,
       guessWindow: pending.lookbackWindow || 50,
-      modelVersion: pending.modelVersion || "legacy_rolling50"
+      modelVersion: pending.modelVersion || "legacy_rolling50",
+      patternVersion:pending.patternVersion || null,
+      runSignal:pending.runSignal || "N",
+      runPatternScore:Number.isFinite(pending.runPatternScore)?pending.runPatternScore:null,
+      runPatternBaseline:Number.isFinite(pending.runPatternBaseline)?pending.runPatternBaseline:null,
+      runPatternContext:pending.runPatternContext || "",
+      runPatternSupport:pending.runPatternSupport || 0,
+      runPatternDepth:pending.runPatternDepth || 0,
+      runSignalHit:(pending.runSignal==="P"||pending.runSignal==="B")
+        ? pending.runSignal === (actual >= 2 ? "P" : "B")
+        : null
     };
     paperState.results.push(result);
     paperState.results = paperState.results.slice(-1000);
@@ -434,7 +459,108 @@
   }
 
 
-  function calculatePatternGuess(history) {
+
+  // Run-length pattern model: B = below 2x, P = 2x or above.
+  // It builds only from completed history and uses prior-only, walk-forward replay.
+  function calculateRunLengthSignal(history) {
+    const n = history.length;
+    const empty = {
+      probability:0.5, baselineProbability:0.5, signal:"N", support:0, depth:0,
+      context:"N/A", holdoutN:0, holdoutHits:0, baselineHits:0, signalN:0,
+      signalHits:0, holdoutAccuracy:NaN, baselineAccuracy:NaN,
+      signalAccuracy:NaN, signalCoverage:NaN
+    };
+    if (!n) return empty;
+
+    const code = run => run.type + (run.len === 1 ? "1" : run.len === 2 ? "2" : "3+");
+    const contextKeys = Array.from({length:n + 1}, () => Array(5).fill(""));
+    const stack = [];
+    const pushRun = value => {
+      const type = value < 2 ? "B" : "P";
+      const last = stack[stack.length - 1];
+      if (last && last.type === type) last.len++;
+      else stack.push({type,len:1});
+    };
+    for (let i = 0; i <= n; i++) {
+      for (let k = 1; k <= 4; k++) {
+        if (stack.length >= k) contextKeys[i][k] = stack.slice(-k).map(code).join("|");
+      }
+      if (i < n) pushRun(history[i]);
+    }
+
+    const maps = {1:new Map(),2:new Map(),3:new Map(),4:new Map()};
+    let observed = 0, pays = 0;
+    let holdoutN = 0, holdoutHits = 0, baselineHits = 0;
+    let signalN = 0, signalHits = 0;
+    const holdoutStart = Math.floor(n * 0.70);
+    const choose = (keys, baseProbability) => {
+      for (let k = 4; k >= 1; k--) {
+        const key = keys[k];
+        if (!key) continue;
+        const record = maps[k].get(key);
+        if (record && record.n >= 8) {
+          const priorStrength = 10;
+          return {
+            probability:(record.pays + priorStrength * baseProbability) / (record.n + priorStrength),
+            baselineProbability:baseProbability, support:record.n, depth:k, key
+          };
+        }
+      }
+      return {probability:baseProbability, baselineProbability:baseProbability, support:0, depth:0, key:""};
+    };
+
+    for (let i = 1; i < n; i++) {
+      const baseProbability = (pays + 1) / (observed + 2);
+      const prediction = choose(contextKeys[i], baseProbability);
+      const actual = history[i] >= 2 ? 1 : 0;
+      if (n >= 100 && i >= holdoutStart) {
+        holdoutN++;
+        if ((prediction.probability >= 0.5 ? 1 : 0) === actual) holdoutHits++;
+        if ((baseProbability >= 0.5 ? 1 : 0) === actual) baselineHits++;
+        let direction = null;
+        if (prediction.support >= 8 && prediction.probability >= baseProbability + 0.04) direction = 1;
+        else if (prediction.support >= 8 && prediction.probability <= baseProbability - 0.04) direction = 0;
+        if (direction !== null) {
+          signalN++;
+          if (direction === actual) signalHits++;
+        }
+      }
+
+      for (let k = 1; k <= 4; k++) {
+        const key = contextKeys[i][k];
+        if (!key) continue;
+        const record = maps[k].get(key) || {n:0,pays:0};
+        record.n++;
+        record.pays += actual;
+        maps[k].set(key, record);
+      }
+      observed++;
+      pays += actual;
+    }
+
+    const baselineProbability = (pays + 1) / (observed + 2);
+    const current = choose(contextKeys[n], baselineProbability);
+    let signal = "N";
+    if (current.support >= 8 && current.probability >= baselineProbability + 0.04) signal = "P";
+    else if (current.support >= 8 && current.probability <= baselineProbability - 0.04) signal = "B";
+
+    return {
+      probability:current.probability,
+      baselineProbability,
+      signal,
+      support:current.support,
+      depth:current.depth,
+      matchedContext:current.key,
+      context:stack.slice(-4).map(code).join(" → "),
+      holdoutN, holdoutHits, baselineHits, signalN, signalHits,
+      holdoutAccuracy:holdoutN ? holdoutHits / holdoutN : NaN,
+      baselineAccuracy:holdoutN ? baselineHits / holdoutN : NaN,
+      signalAccuracy:signalN ? signalHits / signalN : NaN,
+      signalCoverage:holdoutN ? signalN / holdoutN : NaN
+    };
+  }
+
+  function calculatePatternGuess(history, runPattern) {
     const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
     const seq = history.map(outcomeBand);
     const n = seq.length;
@@ -506,6 +632,19 @@
     const weightSum=components.reduce((sum,c)=>sum+c.w,0);
     const scores=[0,0,0,0];
     for(const c of components) for(let b=0;b<4;b++) scores[b]+=c.w*c.p[b]/weightSum;
+
+    // Blend a separate B/P streak-context score into the four multiplier bands.
+    const streakModel = runPattern || calculateRunLengthSignal(history);
+    if(streakModel.support >= 8) {
+      const highTotal = scores[1] + scores[2] + scores[3];
+      const highParts = highTotal > 0 ? scores.slice(1).map(v=>v/highTotal) : [1/3,1/3,1/3];
+      const runDistribution = [1-streakModel.probability,
+        highParts[0]*streakModel.probability,
+        highParts[1]*streakModel.probability,
+        highParts[2]*streakModel.probability];
+      const streakWeight = 0.22;
+      for(let b=0;b<4;b++) scores[b] = scores[b]*(1-streakWeight) + runDistribution[b]*streakWeight;
+    }
     let top=0;
     for(let b=1;b<4;b++) if(scores[b]>scores[top]) top=b;
     const valuesInBand=history.filter(v=>outcomeBand(v)===top);
@@ -525,7 +664,7 @@
       transitionCount,currentStreak,recentSequence:seq.slice(-4).map(b=>names[b]),
       lastBand,bandMedian,numericGuess,numericSource,numericConfidence,
       status:n<20?"BUILDING SAMPLE":n<100?"EARLY SAMPLE":"PATTERN TEST",
-      runHits,cappedRun
+      runHits,cappedRun,runPattern:streakModel
     };
   }
 
@@ -826,7 +965,8 @@
   }
 
   function renderPatternLearner(vals, pointEstimate) {
-    const model=calculatePatternGuess(vals);
+    const runPattern=calculateRunLengthSignal(vals);
+    const model=calculatePatternGuess(vals,runPattern);
     const point=pointEstimate || selectAdaptivePointEstimate(vals);
     $("patternModelStatus").textContent=model.status;
     $("patternGuessBand").textContent=vals.length?model.names[model.top]:"N/A";
@@ -851,6 +991,13 @@
     $("patternTransitionEvidence").textContent=vals.length
       ?`${model.transitionCount} prior transition(s) after ${model.names[model.lastBand]}`
       :"N/A";
+    $("runPatternSequence").textContent=vals.length?runPattern.context:"N/A";
+    $("runPatternSignal").textContent=runPattern.signal==="P"?"P · 2x+ lean":runPattern.signal==="B"?"B · below-2x lean":"No clear lean";
+    $("runPatternScore").textContent=vals.length?`${(runPattern.probability*100).toFixed(1)}% historical score`:"N/A";
+    $("runPatternSupport").textContent=runPattern.support?`${runPattern.support} matching examples · ${runPattern.depth}-run context`:"No run context with 8+ matches";
+    $("runPatternValidation").textContent=runPattern.holdoutN
+      ?`Walk-forward later-30% replay (${runPattern.holdoutN} rounds): run model ${(runPattern.holdoutAccuracy*100).toFixed(1)}% correct vs overall-majority baseline ${(runPattern.baselineAccuracy*100).toFixed(1)}%. Directional-only signals: ${runPattern.signalN} (${(runPattern.signalCoverage*100).toFixed(1)}% coverage), ${runPattern.signalN?`${(runPattern.signalAccuracy*100).toFixed(1)}% hit rate`:"no scored directional calls"}. These are historical diagnostic results, not calibrated odds.`
+      :"Need 100+ rounds for the chronological run-pattern replay.";
     let message=vals.length
       ?`Test-mode guess: ${model.names[model.top]} is the highest-scoring historical band (${(model.scores[model.top]*100).toFixed(1)} relative score). Its within-band historical median is ${fmt(model.bandMedian)}. `
       :"Add completed rounds to calculate pattern features. ";
@@ -859,6 +1006,7 @@
     else message+="No repeated 2- or 3-band motif has enough matches to add weight. ";
     if(model.transitionCount>=3) message+=`The current band has ${model.transitionCount} observed historical follow-up(s). `;
     else message+="The current-band transition history is sparse. ";
+    message+=` Run-length context: ${runPattern.context}. Historical conditional 2x+ score ${(runPattern.probability*100).toFixed(1)}% versus overall prior ${(runPattern.baselineProbability*100).toFixed(1)}%; signal ${runPattern.signal==="P"?"P (2x+ lean)":runPattern.signal==="B"?"B (below-2x lean)":"neutral"}.`;
     message+="This is a pattern-based experiment, not a validated AI or a reliable forecast of an independent random crash.";
     $("patternExplanation").textContent=message;
   }
@@ -1152,9 +1300,9 @@
 
   $("paperExportButton").addEventListener("click",()=>{
     if(!paperState.results.length){alert("No paper-test scores yet. Start the test and wait for a new single-round sync.");return;}
-    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x"];
+    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","pattern_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x","run_signal","run_score_at_least_2x","run_baseline_2x_share","run_context","run_context_support","run_signal_hit"];
     const rows=[headers,...paperState.results.map((r,i)=>[
-      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit
+      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.patternVersion||"",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit,r.runSignal||"",r.runPatternScore,r.runPatternBaseline,r.runPatternContext||"",r.runPatternSupport||0,r.runSignalHit
     ])];
     const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
