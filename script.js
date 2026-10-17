@@ -13,11 +13,12 @@
         active: !!saved.active,
         pending: saved.pending && Number.isFinite(saved.pending.point) ? saved.pending : null,
         results: Array.isArray(saved.results) ? saved.results.filter(r => r && Number.isFinite(r.actual) && Number.isFinite(r.guess)).slice(-1000) : [],
+        pendingRunForecasts: Array.isArray(saved.pendingRunForecasts) ? saved.pendingRunForecasts.filter(f => f && f.runLengthVersion === "run-length-v2" && typeof f.forecastId === "string").slice(-1000) : [],
         skipped: Number.isFinite(saved.skipped) ? saved.skipped : 0,
         lastMessage: typeof saved.lastMessage === "string" ? saved.lastMessage : ""
       };
     } catch (_) {
-      return {active:false,pending:null,results:[],skipped:0,lastMessage:""};
+      return {active:false,pending:null,results:[],pendingRunForecasts:[],skipped:0,lastMessage:""};
     }
   }
 
@@ -27,7 +28,7 @@
 
   function makePaperForecast(history, pointEstimate) {
     if (!history.length) return null;
-    const runPattern = calculateRunLengthSignal(history);
+    const runPattern = calculateRunLengthSignal(history,{skipValidation:true});
     const model = calculatePatternGuess(history, runPattern);
     const point = pointEstimate || selectAdaptivePointEstimate(history);
     if (!Number.isFinite(point.value)) return null;
@@ -35,14 +36,29 @@
       point: point.value,
       baselinePoint: median(history.slice(-Math.min(50, history.length))),
       lookbackWindow: point.window,
-      modelVersion: "streak-run-v1",
-      patternVersion: "run-length-v1",
+      modelVersion: "streak-run-v2",
+      pointModelVersion: "adaptive-median-v1",
+      patternVersion: "run-length-v2",
+      runLengthVersion: "run-length-v2",
+      forecastId: "rlv2-" + history.length + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,8),
       runSignal: runPattern.signal,
       runPatternScore: runPattern.probability,
       runPatternBaseline: runPattern.baselineProbability,
       runPatternContext: runPattern.context,
       runPatternSupport: runPattern.support,
       runPatternDepth: runPattern.depth,
+      bpForecast: runPattern.forecastType,
+      bpProbability: runPattern.probability,
+      bpBaselineProbability: runPattern.baselineProbability,
+      runCurrentType: runPattern.currentRunType,
+      runCurrentLength: runPattern.currentRunLength,
+      runLengthDistribution: runPattern.runLengthDistribution,
+      runLengthBaselineDistribution: runPattern.runLengthBaselineDistribution,
+      runLengthCategoryGuess: runPattern.runLengthGuess,
+      runLengthSupport: runPattern.runLengthSupport,
+      runLengthContextSupport: runPattern.runLengthContextSupport,
+      runLengthContextDepth: runPattern.runLengthContextDepth,
+      runLengthContext: runPattern.runLengthContext || "",
       band: model.top,
       bandLabel: model.names[model.top],
       modelScore: model.scores[model.top],
@@ -66,8 +82,8 @@
       : "Start paper test to lock a forecast before the next newly synced result.";
     const allResults = paperState.results;
     // Do not mix pre-upgrade rolling-50 guesses into the adaptive-window model's metrics.
-    const results = allResults.filter(r => r && r.modelVersion === "streak-run-v1");
-    const runPatternScores = allResults.filter(r => r && r.patternVersion === "run-length-v1");
+    const results = allResults.filter(r => r && r.modelVersion === "streak-run-v2");
+    const runPatternScores = allResults.filter(r => r && r.patternVersion === "run-length-v2");
     const runPatternCalls = runPatternScores.filter(r => (r.runSignal === "P" || r.runSignal === "B") && typeof r.runSignalHit === "boolean");
     const runPatternHits = runPatternCalls.filter(r => r.runSignalHit).length;
     const bandHits = results.filter(r => r.bandHit).length;
@@ -86,6 +102,24 @@
     $("paperRunPatternNote").textContent = runPatternCalls.length
       ? `${runPatternHits}/${runPatternCalls.length} directional signal(s) · ${pct(runPatternCalls.length,runPatternScores.length)} of scored rounds`
       : "No directional signals scored yet";
+    const bpRows = allResults.filter(r => r && r.runLengthVersion === "run-length-v2" && typeof r.bpHit === "boolean" && Number.isFinite(r.bpBrier));
+    const bpHits = bpRows.filter(r => r.bpHit).length;
+    const bpBaseHits = bpRows.filter(r => r.bpBaselineHit === true).length;
+    const bpBrier = bpRows.length ? bpRows.reduce((s,r)=>s+r.bpBrier,0)/bpRows.length : NaN;
+    const bpBaseBrier = bpRows.length ? bpRows.reduce((s,r)=>s+(Number.isFinite(r.bpBaselineBrier)?r.bpBaselineBrier:0),0)/bpRows.length : NaN;
+    const lengthRows = allResults.filter(r => r && r.runLengthVersion === "run-length-v2" && typeof r.runLengthHit === "boolean");
+    const lengthHits = lengthRows.filter(r => r.runLengthHit).length;
+    const lengthBaseHits = lengthRows.filter(r => r.runLengthBaselineHit === true).length;
+    $("paperBPAccuracy").textContent = bpRows.length ? pct(bpHits,bpRows.length) : "N/A";
+    $("paperBPBaselineAccuracy").textContent = bpRows.length ? pct(bpBaseHits,bpRows.length) : "N/A";
+    $("paperBPBrier").textContent = Number.isFinite(bpBrier) ? bpBrier.toFixed(3) : "N/A";
+    $("paperBPBrierBaseline").textContent = Number.isFinite(bpBaseBrier) ? bpBaseBrier.toFixed(3) : "N/A";
+    $("paperBPCount").textContent = bpRows.length.toLocaleString();
+    $("paperRunLengthAccuracy").textContent = lengthRows.length ? pct(lengthHits,lengthRows.length) : "N/A";
+    $("paperRunLengthBaseline").textContent = lengthRows.length ? pct(lengthBaseHits,lengthRows.length) : "N/A";
+    $("paperRunLengthCount").textContent = lengthRows.length.toLocaleString();
+    $("paperBPNote").textContent = bpRows.length ? `${bpHits}/${bpRows.length} B/P forecasts · matched baseline` : "New run-length-v2 records only";
+    $("paperRunLengthNote").textContent = lengthRows.length ? `${lengthHits}/${lengthRows.length} resolved runs` : "Scored after each run closes";
     if (results.length) {
       const last = results[results.length-1];
       const baselineText = Number.isFinite(last.baselineAbsError)
@@ -107,6 +141,7 @@
     const pending = paperState.pending;
     if (!pending) {
       paperState.skipped += 1;
+      paperState.pendingRunForecasts = [];
       paperState.lastMessage = "A result arrived without a locked guess; it was not scored.";
       paperState.pending = makePaperForecast(values());
       savePaperState();
@@ -138,9 +173,51 @@
       runPatternDepth:pending.runPatternDepth || 0,
       runSignalHit:(pending.runSignal==="P"||pending.runSignal==="B")
         ? pending.runSignal === (actual >= 2 ? "P" : "B")
-        : null
+        : null,
+      forecastId: pending.forecastId || null,
+      runLengthVersion: pending.runLengthVersion || null,
+      bpForecast: pending.bpForecast || null,
+      bpProbability: Number.isFinite(pending.bpProbability) ? pending.bpProbability : null,
+      bpBaselineProbability: Number.isFinite(pending.bpBaselineProbability) ? pending.bpBaselineProbability : null,
+      bpActual: actual >= 2 ? "P" : "B",
+      bpHit: (pending.bpForecast==="P"||pending.bpForecast==="B") ? pending.bpForecast===(actual>=2?"P":"B") : null,
+      bpBrier: Number.isFinite(pending.bpProbability) ? Math.pow(pending.bpProbability-(actual>=2?1:0),2) : null,
+      bpBaselineHit: Number.isFinite(pending.bpBaselineProbability) ? (pending.bpBaselineProbability>=0.5)===(actual>=2) : null,
+      bpBaselineBrier: Number.isFinite(pending.bpBaselineProbability) ? Math.pow(pending.bpBaselineProbability-(actual>=2?1:0),2) : null,
+      runCurrentType: pending.runCurrentType || null,
+      runCurrentLength: Number.isFinite(pending.runCurrentLength) ? pending.runCurrentLength : null,
+      runLengthCategoryGuess: pending.runLengthCategoryGuess || null,
+      runLengthDistribution: pending.runLengthDistribution || null,
+      runLengthBaselineDistribution: pending.runLengthBaselineDistribution || null,
+      runLengthSupport: pending.runLengthSupport || 0,
+      runLengthContextSupport: pending.runLengthContextSupport || 0,
+      runLengthActualLength: null,
+      runLengthActualCategory: null,
+      runLengthHit: null,
+      runLengthBaselineHit: null
     };
     paperState.results.push(result);
+    if (pending.runLengthVersion === "run-length-v2" && (pending.runCurrentType === "B" || pending.runCurrentType === "P")) {
+      if ((actual >= 2 ? "P" : "B") === pending.runCurrentType) {
+        paperState.pendingRunForecasts = (paperState.pendingRunForecasts || []).filter(f => f.runCurrentType === pending.runCurrentType);
+        paperState.pendingRunForecasts.push(pending);
+        paperState.pendingRunForecasts = paperState.pendingRunForecasts.slice(-1000);
+      } else {
+        const actualLength = pending.runCurrentLength;
+        const actualCategory = runLengthCategoryForLength(actualLength);
+        const forecasts = (paperState.pendingRunForecasts || []).concat([pending]).filter(f => f && f.runLengthVersion === "run-length-v2" && f.runCurrentType === pending.runCurrentType);
+        const resultById = new Map(paperState.results.map(r => [r.forecastId,r]));
+        for (const forecast of forecasts) {
+          const scored = resultById.get(forecast.forecastId);
+          if (!scored) continue;
+          scored.runLengthActualLength = actualLength;
+          scored.runLengthActualCategory = actualCategory;
+          scored.runLengthHit = forecast.runLengthCategoryGuess === actualCategory;
+          scored.runLengthBaselineHit = forecast.runLengthBaselineDistribution ? runLengthBestCategory(forecast.runLengthBaselineDistribution) === actualCategory : null;
+        }
+        paperState.pendingRunForecasts = [];
+      }
+    } else paperState.pendingRunForecasts = [];
     paperState.results = paperState.results.slice(-1000);
     paperState.lastMessage = `Scored round ${paperState.results.length}: model error ${fmt(absError)}, rolling-50 baseline error ${fmt(baselineAbsError)}; ${result.bandHit ? "band hit" : "band miss"}.`;
     paperState.pending = null;
@@ -153,11 +230,12 @@
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       if (!Array.isArray(saved)) return [];
-      return saved.filter(x => x && Number.isFinite(x.multiplier) && x.multiplier >= 1 && typeof x.timestamp === "string").slice(-MAX_ROUNDS);
+      return saved.filter(x => x && Number.isFinite(x.multiplier) && x.multiplier >= 1 && typeof x.timestamp === "string").sort((a,b)=>{const ta=Date.parse(a.timestamp),tb=Date.parse(b.timestamp);return (Number.isFinite(ta)?ta:0)-(Number.isFinite(tb)?tb:0);}).slice(-MAX_ROUNDS);
     } catch (_) { return []; }
   }
   function saveHistory() {
     try {
+      rounds.sort((a,b)=>{const ta=Date.parse(a.timestamp),tb=Date.parse(b.timestamp);return (Number.isFinite(ta)?ta:0)-(Number.isFinite(tb)?tb:0);});
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rounds.slice(-MAX_ROUNDS)));
       $("saveStatus").textContent = "Saved in this browser on this device.";
     } catch (_) { $("saveStatus").textContent = "Could not save. Browser storage may be disabled or full."; }
@@ -227,6 +305,7 @@
           // A batch cannot be safely aligned one-by-one to pending forecasts.
           paperState.skipped += newlyAdded.length;
           paperState.pending = null;
+          paperState.pendingRunForecasts = [];
           paperState.lastMessage = `Skipped scoring a batch of ${newlyAdded.length} results because the individual round-to-guess order was ambiguous.`;
         }
         if (paperState.active) paperState.pending = null;
@@ -920,9 +999,32 @@
         : "BASELINE FAVORED";
   }
 
+
+  function renderRunLengthPanel(vals,run){
+    const put=(id,text)=>{const node=$(id);if(node)node.textContent=text;},n=vals.length,d=run.runLengthDistribution||{},base=run.runLengthBaselineDistribution||{},active=n>0;
+    put("runLengthCurrentRun",active?run.currentRunLabel+" · open run":"N/A");put("runLengthRecentSequence",active?run.context:"N/A");
+    put("runLengthNextClass",active?(run.forecastType==="P"?"P · next round ≥ 2.00x":"B · next round < 2.00x"):"N/A");
+    const prob=run.forecastType==="P"?run.probability:1-run.probability,baseProb=run.forecastType==="P"?run.baselineProbability:1-run.baselineProbability;
+    put("runLengthNextProbability",active?(prob*100).toFixed(1)+"%":"N/A");put("runLengthNextBaseline",active?(baseProb*100).toFixed(1)+"% for same category":"N/A");
+    put("runLengthNextSupport",run.support?run.support+" matches · "+run.depth+"-run context":"No context met 8-match threshold; overall prior used");
+    put("runLengthLengthGuess",active?run.runLengthGuess:"N/A");put("runLengthLengthSupport",active?run.runLengthSupport+" eligible runs · "+run.runLengthContextSupport+" contextual match(es)":"N/A");
+    for(const cat of ["1","2","3","4+"]){const node=$("runLengthLen"+(cat==="4+"?"4":cat));if(node)node.textContent=active&&Number.isFinite(d[cat])?(100*d[cat]).toFixed(1)+"%":"N/A";const bn=$("runLengthBase"+(cat==="4+"?"4plus":cat));if(bn)bn.textContent=active&&Number.isFinite(base[cat])?"baseline "+(100*base[cat]).toFixed(1)+"%":"";}
+    put("runLengthRecentVsOverall",active?"P share · last "+Math.min(50,n)+" rounds: "+(100*run.recentPayRate).toFixed(1)+"%; smoothed overall: "+(100*run.baselineProbability).toFixed(1)+"%":"Need completed rounds.");
+    put("runLengthFrequencySummary",run.runLengthFrequencySummary||"No completed runs");const tbody=$("runLengthPatternRows");
+    if(tbody){tbody.replaceChildren();const matches=run.patternMatches||[];if(!matches.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=3;td.className="empty";td.textContent=n<10?"Need more history to form run patterns.":"No historical follow-up matches found.";tr.appendChild(td);tbody.appendChild(tr);}
+      else for(const item of matches){const tr=document.createElement("tr");[item.pattern,String(item.matches),item.followSummary+" ("+item.bpSummary+")"].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td);});tbody.appendChild(tr);}}
+    put("runLengthOosN",run.holdoutN?String(run.holdoutN):"N/A");put("runLengthOosAccuracy",run.holdoutN?(100*run.holdoutAccuracy).toFixed(1)+"%":"N/A");put("runLengthOosBaselineAccuracy",run.holdoutN?(100*run.baselineAccuracy).toFixed(1)+"%":"N/A");
+    put("runLengthOosBrier",Number.isFinite(run.brierScore)?run.brierScore.toFixed(3):"N/A");put("runLengthOosBaselineBrier",Number.isFinite(run.baselineBrierScore)?run.baselineBrierScore.toFixed(3):"N/A");
+    put("runLengthSupportedCalls",run.holdoutN?run.supportedPredictions+"/"+run.holdoutN+" supported":"N/A");put("runLengthLenN",run.runLengthHoldoutN?String(run.runLengthHoldoutN):"N/A");
+    put("runLengthLenAccuracy",run.runLengthHoldoutN?(100*run.runLengthAccuracy).toFixed(1)+"%":"N/A");put("runLengthLenBaselineAccuracy",run.runLengthHoldoutN?(100*run.runLengthBaselineAccuracy).toFixed(1)+"%":"N/A");
+    put("runLengthLenSupported",run.runLengthHoldoutN?run.runLengthSupported+"/"+run.runLengthHoldoutN+" with contextual support":"N/A");
+    put("runLengthTestNote",!n?"Add completed multipliers to calculate the run-length model.":!run.holdoutN?"Need at least 40 rounds before chronological B/P validation is available.":"Later-30% rolling-origin test ("+run.holdoutN+" rounds): B/P accuracy "+(100*run.holdoutAccuracy).toFixed(1)+"% vs baseline "+(100*run.baselineAccuracy).toFixed(1)+"%; Brier "+run.brierScore.toFixed(3)+" vs "+run.baselineBrierScore.toFixed(3)+" (lower is better). Run-length accuracy "+(run.runLengthHoldoutN?(100*run.runLengthAccuracy).toFixed(1)+"% vs baseline "+(100*run.runLengthBaselineAccuracy).toFixed(1)+"% on "+run.runLengthHoldoutN+" resolved runs":"not yet measurable")+". Unfinished final run is excluded.");
+  }
+
   function renderPatternLearner(vals, pointEstimate) {
     const runPattern=calculateRunLengthSignal(vals);
     const model=calculatePatternGuess(vals,runPattern);
+    renderRunLengthPanel(vals,runPattern);
     const point=pointEstimate || selectAdaptivePointEstimate(vals);
     $("patternModelStatus").textContent=model.status;
     $("patternGuessBand").textContent=vals.length?model.names[model.top]:"N/A";
@@ -951,9 +1053,7 @@
     $("runPatternSignal").textContent=runPattern.signal==="P"?"P · 2x+ lean":runPattern.signal==="B"?"B · below-2x lean":"No clear lean";
     $("runPatternScore").textContent=vals.length?`${(runPattern.probability*100).toFixed(1)}% historical score`:"N/A";
     $("runPatternSupport").textContent=runPattern.support?`${runPattern.support} matching examples · ${runPattern.depth}-run context`:"No run context with 8+ matches";
-    $("runPatternValidation").textContent=runPattern.holdoutN
-      ?`Walk-forward later-30% replay (${runPattern.holdoutN} rounds): run model ${(runPattern.holdoutAccuracy*100).toFixed(1)}% correct vs overall-majority baseline ${(runPattern.baselineAccuracy*100).toFixed(1)}%. Directional-only signals: ${runPattern.signalN} (${(runPattern.signalCoverage*100).toFixed(1)}% coverage), ${runPattern.signalN?`${(runPattern.signalAccuracy*100).toFixed(1)}% hit rate`:"no scored directional calls"}. These are historical diagnostic results, not calibrated odds.`
-      :"Need 100+ rounds for the chronological run-pattern replay.";
+    $("runPatternValidation").textContent=runPattern.holdoutN?"Later-30% replay ("+runPattern.holdoutN+" rounds): B/P accuracy "+(100*runPattern.holdoutAccuracy).toFixed(1)+"% vs baseline "+(100*runPattern.baselineAccuracy).toFixed(1)+"%; Brier "+runPattern.brierScore.toFixed(3)+" vs "+runPattern.baselineBrierScore.toFixed(3)+". Run-length accuracy "+(runPattern.runLengthHoldoutN?(100*runPattern.runLengthAccuracy).toFixed(1)+"% vs baseline "+(100*runPattern.runLengthBaselineAccuracy).toFixed(1)+"%":"N/A")+".":"Need 40+ rounds for chronological B/P validation.";
     let message=vals.length
       ?`Test-mode guess: ${model.names[model.top]} is the highest-scoring historical band (${(model.scores[model.top]*100).toFixed(1)} relative score). Its within-band historical median is ${fmt(model.bandMedian)}. `
       :"Add completed rounds to calculate pattern features. ";
@@ -1223,7 +1323,7 @@
     const val=Number(raw);
     if(!raw||!Number.isFinite(val)||val<1||val>1000000){error.textContent="Enter a valid completed multiplier of at least 1.00, e.g. 1.45.";error.hidden=false;return;}
     if(rounds.length>=MAX_ROUNDS){error.textContent=`Maximum ${MAX_ROUNDS} rounds reached. Export your data first.`;error.hidden=false;return;}
-    error.hidden=true;rounds.push({multiplier:val,timestamp:new Date().toISOString()});saveHistory();render();input.value="";input.focus();resetAnalysis("Round added. Run analysis to refresh the historical reference.");
+    error.hidden=true;const observedTimestamp=new Date().toISOString();settlePaperOnLiveResult(val,observedTimestamp);rounds.push({multiplier:val,timestamp:observedTimestamp});saveHistory();render();input.value="";input.focus();resetAnalysis("Round added. B/P run-length model and paper test refreshed.");
   });
   $("analyzeButton").addEventListener("click",analyze);
   $("pfVerifierForm").addEventListener("submit", verifyCompletedRound);
@@ -1249,17 +1349,16 @@
   $("paperPauseButton").addEventListener("click",()=>{
     paperState.active = false;
     paperState.pending = null;
-    paperState.lastMessage = "Paper test paused. No new results will be scored.";
+    paperState.pendingRunForecasts = [];
+    paperState.lastMessage = "Paper test paused. Unresolved run lengths remain unscored.";
     savePaperState();
     renderPaperTracker();
   });
 
   $("paperExportButton").addEventListener("click",()=>{
     if(!paperState.results.length){alert("No paper-test scores yet. Start the test and wait for a new single-round sync.");return;}
-    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","pattern_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x","run_signal","run_score_at_least_2x","run_baseline_2x_share","run_context","run_context_support","run_signal_hit"];
-    const rows=[headers,...paperState.results.map((r,i)=>[
-      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.patternVersion||"",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit,r.runSignal||"",r.runPatternScore,r.runPatternBaseline,r.runPatternContext||"",r.runPatternSupport||0,r.runSignalHit
-    ])];
+    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","pattern_version","run_length_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x","run_signal","run_score_at_least_2x","run_baseline_2x_share","run_context","run_context_support","run_signal_hit","bp_forecast","bp_probability_P","bp_baseline_probability_P","bp_actual","bp_hit","bp_brier","bp_baseline_hit","bp_baseline_brier","run_current_type","run_current_length","run_length_category_guess","run_length_distribution_json","run_length_actual_length","run_length_actual_category","run_length_hit","run_length_baseline_hit"];
+    const rows=[headers,...paperState.results.map((r,i)=>[i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.patternVersion||"",r.runLengthVersion||"",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit,r.runSignal||"",r.runPatternScore,r.runPatternBaseline,r.runPatternContext||"",r.runPatternSupport||0,r.runSignalHit,r.bpForecast||"",r.bpProbability,r.bpBaselineProbability,r.bpActual||"",r.bpHit,r.bpBrier,r.bpBaselineHit,r.bpBaselineBrier,r.runCurrentType||"",r.runCurrentLength||"",r.runLengthCategoryGuess||"",JSON.stringify(r.runLengthDistribution||{}),r.runLengthActualLength||"",r.runLengthActualCategory||"",r.runLengthHit,r.runLengthBaselineHit])];
     const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
     a.href=url;a.download="aviator-paper-test.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
