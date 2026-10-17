@@ -170,7 +170,7 @@
             <span class="estimate-status" id="localMLStatus">NEED MORE HISTORY</span>
           </div>
           <div class="local-ml-main">
-            <div><span class="stat-label">ML's highest-scoring band</span><strong id="localMLBand">N/A</strong></div>
+            <div><span class="stat-label">ML candidate band (not selected unless it beats baseline)</span><strong id="localMLBand">N/A</strong></div>
             <div><span class="stat-label">Model score (not true odds)</span><strong id="localMLScore">N/A</strong></div>
             <div><span class="stat-label">Training examples</span><strong id="localMLExamples">0</strong></div>
           </div>
@@ -182,17 +182,17 @@
           </div>
           <section class="local-ml-point" aria-label="Machine learning numeric estimate">
             <div class="local-ml-point-head">
-              <div><span class="stat-label">ML numeric estimate · experimental only</span><strong id="localMLNumericGuess">N/A</strong></div>
-              <p class="muted">A separate supervised regression model trained on prior rounds. Its fixed chronological holdout is scored against a simple rolling-50 median on the exact same future results.</p>
+              <div><span class="stat-label">Adaptive next-round point estimate · test-selected lookback</span><strong id="localMLNumericGuess">N/A</strong></div>
+              <p class="muted">Uses the median of a rolling window chosen from 10–300 rounds using earlier walk-forward errors. The final chronological segment is reserved for comparing the selected window against the rolling-50 baseline. This is a robust center estimate, not an exact crash prediction.</p>
             </div>
             <div class="local-ml-point-test">
-              <div><span class="stat-label">ML median absolute error</span><strong id="localMLPointMedianError">N/A</strong></div>
-              <div><span class="stat-label">Baseline median absolute error</span><strong id="localMLPointBaselineMedianError">N/A</strong></div>
-              <div><span class="stat-label">ML mean absolute error</span><strong id="localMLPointMAE">N/A</strong></div>
-              <div><span class="stat-label">Baseline mean absolute error</span><strong id="localMLPointBaselineMAE">N/A</strong></div>
+              <div><span class="stat-label">Selected-window median absolute error</span><strong id="localMLPointMedianError">N/A</strong></div>
+              <div><span class="stat-label">Rolling-50 baseline median error</span><strong id="localMLPointBaselineMedianError">N/A</strong></div>
+              <div><span class="stat-label">Selected-window mean absolute error</span><strong id="localMLPointMAE">N/A</strong></div>
+              <div><span class="stat-label">Rolling-50 baseline mean error</span><strong id="localMLPointBaselineMAE">N/A</strong></div>
               <div><span class="stat-label">Median error vs baseline</span><strong id="localMLPointDelta">N/A</strong></div>
             </div>
-            <p id="localMLNumericExplanation" class="analysis-output">Collect more completed rounds to train and validate a numeric machine-learning estimate.</p>
+            <p id="localMLNumericExplanation" class="analysis-output">Collect completed rounds; a chronological holdout will compare the selected median window with a rolling-50 baseline.</p>
           </section>
           <div class="local-ml-test">
             <div><span class="stat-label">Frozen chronological holdout</span><strong id="localMLHoldout">N/A</strong></div>
@@ -294,6 +294,6 @@
     </section>
     <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
-  <script src="script.js?v=0.15.0"></script>
+  <script src="script.js?v=0.16.0"></script>
 </body>
 </html>
