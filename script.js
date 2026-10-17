@@ -62,7 +62,7 @@
     $("paperStatus").textContent = paperState.active ? "PAPER TEST ACTIVE" : "PAUSED";
     $("paperNextGuess").textContent = pending ? fmt(pending.point) : (paperState.active ? "Waiting for data" : "Not started");
     $("paperNextReason").textContent = pending
-      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. ${pending.modelVersion === "streak-run-v1" ? `Adaptive point estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the numeric baseline.` : "This forecast was locked by an earlier model version."} Top band: ${pending.bandLabel}; recent bands: ${(pending.recentSequence||[]).join(" → ")}. Run context: ${pending.runPatternContext||"not recorded"}; streak signal: ${pending.runSignal==="P"?"P · 2x+ lean":pending.runSignal==="B"?"B · below-2x lean":"no clear lean"}. Historical run score ${(Number.isFinite(pending.runPatternScore)?pending.runPatternScore:0.5)*100}% is not calibrated odds.`
+      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. ${pending.modelVersion === "streak-run-v1" ? `Adaptive point estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the numeric baseline.` : "This forecast was locked by an earlier model version."} Top band: ${pending.bandLabel}; recent bands: ${(pending.recentSequence||[]).join(" → ")}. Run context: ${pending.runPatternContext||"not recorded"}; streak signal: ${pending.runSignal==="P"?"P · 2x+ lean":pending.runSignal==="B"?"B · below-2x lean":"no clear lean"}. Historical run score ${((Number.isFinite(pending.runPatternScore)?pending.runPatternScore:0.5)*100).toFixed(1)}% is not calibrated odds.`
       : "Start paper test to lock a forecast before the next newly synced result.";
     const allResults = paperState.results;
     // Do not mix pre-upgrade rolling-50 guesses into the adaptive-window model's metrics.
@@ -93,7 +93,7 @@
         : "";
       $("paperLastOutcome").textContent = `Last scored result: model estimate ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)}${baselineText} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
     } else {
-      $("paperLastOutcome").textContent = `No adaptive-window paper-test rounds scored yet. ${allResults.length} earlier baseline-only record(s) remain saved but are excluded from this upgraded model's metrics. Keep both tabs open and wait for a newly synced single round.`;
+      $("paperLastOutcome").textContent = `No run-length predictor paper-test rounds scored yet. ${allResults.length} earlier-version record(s) remain saved but are excluded from this model version's metrics. Keep both tabs open and wait for a newly synced single round.`;
     }
     $("paperStartButton").textContent = paperState.active
       ? (pending ? "Guess locked" : "Lock next guess")
