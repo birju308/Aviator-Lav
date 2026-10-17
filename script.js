@@ -25,13 +25,15 @@
     try { localStorage.setItem(PAPER_KEY, JSON.stringify(paperState)); } catch (_) {}
   }
 
-  function makePaperForecast(history) {
+  function makePaperForecast(history, pointEstimate) {
     if (!history.length) return null;
     const model = calculatePatternGuess(history);
-    if (!Number.isFinite(model.numericGuess)) return null;
+    const point = pointEstimate || selectAdaptivePointEstimate(history);
+    if (!Number.isFinite(point.value)) return null;
     return {
-      point: model.numericGuess,
+      point: point.value,
       baselinePoint: median(history.slice(-Math.min(50, history.length))),
+      lookbackWindow: point.window,
       band: model.top,
       bandLabel: model.names[model.top],
       modelScore: model.scores[model.top],
@@ -41,17 +43,17 @@
     };
   }
 
-  function renderPaperTracker() {
+  function renderPaperTracker(pointEstimate) {
     const valuesNow = values();
     if (paperState.active && !paperState.pending) {
-      paperState.pending = makePaperForecast(valuesNow);
+      paperState.pending = makePaperForecast(valuesNow,pointEstimate);
       savePaperState();
     }
     const pending = paperState.pending;
     $("paperStatus").textContent = paperState.active ? "PAPER TEST ACTIVE" : "PAUSED";
     $("paperNextGuess").textContent = pending ? fmt(pending.point) : (paperState.active ? "Waiting for data" : "Not started");
     $("paperNextReason").textContent = pending
-      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. Top band: ${pending.bandLabel}; sequence: ${(pending.recentSequence||[]).join(" → ")}. Relative score ${(pending.modelScore*100).toFixed(1)}% is not calibrated odds.`
+      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. Point estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the baseline comparator. Top band: ${pending.bandLabel}; sequence: ${(pending.recentSequence||[]).join(" → ")}. Relative band score ${(pending.modelScore*100).toFixed(1)}% is not calibrated odds.`
       : "Start paper test to lock a forecast before the next newly synced result.";
     const results = paperState.results;
     const bandHits = results.filter(r => r.bandHit).length;
@@ -106,7 +108,8 @@
       nearHit: absError <= 0.25,
       guessCreatedAt: pending.createdAt,
       observedAt: timestamp || new Date().toISOString(),
-      sampleSize: pending.sampleSize
+      sampleSize: pending.sampleSize,
+      guessWindow: pending.lookbackWindow || 50
     };
     paperState.results.push(result);
     paperState.results = paperState.results.slice(-1000);
@@ -197,7 +200,7 @@
           paperState.pending = null;
           paperState.lastMessage = `Skipped scoring a batch of ${newlyAdded.length} results because the individual round-to-guess order was ambiguous.`;
         }
-        if (paperState.active) paperState.pending = makePaperForecast(values());
+        if (paperState.active) paperState.pending = null;
         savePaperState();
       }
       saveHistory();
@@ -653,7 +656,62 @@
     return median(errors);
   }
 
-  function renderLocalML(vals) {
+  // Select a robust point-estimate lookback on an early chronological development set.
+  // The later 30% of one-step forecasts is never used to choose the window.
+  function selectAdaptivePointEstimate(history) {
+    const candidates = [10,20,30,40,50,75,100,150,200,300];
+    const n = history.length;
+    const fallbackWindow = Math.min(50,n);
+    const fallbackValue = n ? median(history.slice(-fallbackWindow)) : NaN;
+    if (n < 160) {
+      return {ready:false,window:fallbackWindow,value:fallbackValue,developmentCount:0,holdoutCount:0,
+        holdoutMedianError:NaN,baselineMedianError:NaN,holdoutMAE:NaN,baselineMAE:NaN};
+    }
+    const warmup = Math.min(50,Math.max(30,Math.floor(n*0.12)));
+    // Bound work when users have thousands of saved rounds; all prediction rows remain chronological.
+    const step = Math.max(1,Math.ceil(n/1200));
+    const rows = [];
+    for (let i=warmup;i<n;i+=step) {
+      const predictions = Object.create(null);
+      for (const windowSize of candidates) {
+        predictions[windowSize] = median(history.slice(Math.max(0,i-windowSize),i));
+      }
+      rows.push({actual:history[i],predictions});
+    }
+    const split = Math.floor(rows.length*0.70);
+    const development = rows.slice(0,split);
+    const holdout = rows.slice(split);
+    if (development.length < 40 || holdout.length < 20) {
+      return {ready:false,window:fallbackWindow,value:fallbackValue,developmentCount:development.length,holdoutCount:holdout.length,
+        holdoutMedianError:NaN,baselineMedianError:NaN,holdoutMAE:NaN,baselineMAE:NaN};
+    }
+    const candidatesScored = candidates.map(windowSize => {
+      const errors = development.map(row => Math.abs(row.actual-row.predictions[windowSize]));
+      return {window:windowSize,medianError:median(errors),meanError:errors.reduce((a,b)=>a+b,0)/errors.length};
+    });
+    candidatesScored.sort((a,b) =>
+      (a.medianError-b.medianError) ||
+      (a.meanError-b.meanError) ||
+      (Math.abs(a.window-50)-Math.abs(b.window-50))
+    );
+    const selectedWindow = candidatesScored[0].window;
+    const modelErrors = holdout.map(row => Math.abs(row.actual-row.predictions[selectedWindow]));
+    const baselineErrors = holdout.map(row => Math.abs(row.actual-row.predictions[50]));
+    const mean = values => values.length ? values.reduce((a,b)=>a+b,0)/values.length : NaN;
+    return {
+      ready:true,
+      window:selectedWindow,
+      value:median(history.slice(-Math.min(selectedWindow,n))),
+      developmentCount:development.length,
+      holdoutCount:holdout.length,
+      holdoutMedianError:median(modelErrors),
+      baselineMedianError:median(baselineErrors),
+      holdoutMAE:mean(modelErrors),
+      baselineMAE:mean(baselineErrors)
+    };
+  }
+
+  function renderLocalML(vals, pointEstimate) {
     const bandNode = $("localMLBand");
     if (!bandNode) return;
     const n = vals.length;
@@ -704,56 +762,48 @@
       ? `Trained locally on ${fit.examples} earlier one-step examples using four prior bands, streak length, rolling band frequencies and recent multiplier summaries. The displayed score is a model score, not a calibrated chance of the next crash.`
       : "The model runs in this browser only; it does not send history to an external AI service.";
 
-    // Train a separate numeric regressor and score it on a frozen later segment.
-    const numericFit = fitLocalRegression(vals,n);
-    const numericGuess = predictLocalRegression(numericFit,vals);
-    $("localMLNumericGuess").textContent = Number.isFinite(numericGuess) ? fmt(numericGuess) : "N/A";
-
-    const regressionFit = fitLocalRegression(vals,testStart);
-    const numericErrors = [], medianBaselineErrors = [], meanBaselineErrors = [];
-    for (let i = testStart; i < n; i++) {
-      const actual = vals[i];
-      const historyBeforeRound = vals.slice(0,i);
-      const guess = predictLocalRegression(regressionFit,historyBeforeRound);
-      if (Number.isFinite(guess)) numericErrors.push(Math.abs(actual-guess));
-      const baseline = median(historyBeforeRound.slice(-Math.min(50,historyBeforeRound.length)));
-      if (Number.isFinite(baseline)) medianBaselineErrors.push(Math.abs(actual-baseline));
-    }
-    const numericMedianError = medianAbsoluteError(numericErrors);
-    const baselineMedianError = medianAbsoluteError(medianBaselineErrors);
-    const numericMAE = numericErrors.length ? numericErrors.reduce((a,b)=>a+b,0)/numericErrors.length : NaN;
-    const baselineMAE = medianBaselineErrors.length ? medianBaselineErrors.reduce((a,b)=>a+b,0)/medianBaselineErrors.length : NaN;
-    $("localMLPointMedianError").textContent = Number.isFinite(numericMedianError) ? fmt(numericMedianError) : "N/A";
-    $("localMLPointBaselineMedianError").textContent = Number.isFinite(baselineMedianError) ? fmt(baselineMedianError) : "N/A";
-    $("localMLPointMAE").textContent = Number.isFinite(numericMAE) ? fmt(numericMAE) : "N/A";
-    $("localMLPointBaselineMAE").textContent = Number.isFinite(baselineMAE) ? fmt(baselineMAE) : "N/A";
-    const medianDelta = numericMedianError - baselineMedianError;
-    $("localMLPointDelta").textContent = Number.isFinite(medianDelta)
-      ? (Math.abs(medianDelta)<0.005 ? "Tied on this holdout" : medianDelta<0 ? `${fmt(Math.abs(medianDelta))} lower error` : `${fmt(medianDelta)} higher error`)
-      : "Not enough validation data";
-    $("localMLNumericExplanation").textContent = !numericFit.ready
-      ? "Collect more completed rounds before this regression model can train."
-      : !Number.isFinite(medianDelta)
-        ? "Not enough future holdout rounds to score the numeric model."
-        : medianDelta < -0.005
-          ? "The ML regressor had lower median absolute error than the rolling-50 median on this frozen historical holdout. This small historical result does not prove future predictive ability."
-          : medianDelta > 0.005
-            ? "The ML regressor had higher median absolute error than the rolling-50 median on this frozen historical holdout. For now, the simple baseline is better."
-            : "The ML regressor and rolling-50 median were effectively tied on this frozen historical holdout; there is no demonstrated numeric edge.";
+    // Use a robust point estimator selected on early data, not a regressor that failed to beat the median baseline.
+    const point = pointEstimate || selectAdaptivePointEstimate(vals);
+    $("localMLNumericGuess").textContent = Number.isFinite(point.value) ? fmt(point.value) : "N/A";
+    $("localMLPointMedianError").textContent = point.ready ? fmt(point.holdoutMedianError) : "N/A";
+    $("localMLPointBaselineMedianError").textContent = point.ready ? fmt(point.baselineMedianError) : "N/A";
+    $("localMLPointMAE").textContent = point.ready ? fmt(point.holdoutMAE) : "N/A";
+    $("localMLPointBaselineMAE").textContent = point.ready ? fmt(point.baselineMAE) : "N/A";
+    const medianDelta = point.holdoutMedianError - point.baselineMedianError;
+    $("localMLPointDelta").textContent = !point.ready
+      ? "Need more validation data"
+      : Math.abs(medianDelta) < 0.005
+        ? "Tied on this holdout"
+        : medianDelta < 0
+          ? `${fmt(Math.abs(medianDelta))} lower error`
+          : `${fmt(medianDelta)} higher error`;
+    $("localMLNumericExplanation").textContent = !point.ready
+      ? "Need at least 160 completed rounds to select a lookback window on early chronological forecasts and score it against a later untouched holdout."
+      : `Selected the median of the latest ${point.window} rounds using ${point.developmentCount} earlier walk-forward forecasts. On the later holdout (${point.holdoutCount} predictions), median absolute error was ${fmt(point.holdoutMedianError)} versus ${fmt(point.baselineMedianError)} for the rolling-50 baseline; mean absolute error was ${fmt(point.holdoutMAE)} versus ${fmt(point.baselineMAE)}. Any small difference can be sampling noise; this is a robust historical center, not the next hidden crash point.`;
+    $("localMLStatus").textContent = !fit.ready
+      ? "NEED MORE HISTORY"
+      : (testN >= 100 && Number.isFinite(delta) && delta >= 2)
+        ? "ML EDGE · UNCONFIRMED"
+        : "BASELINE FAVORED";
   }
 
-  function renderPatternLearner(vals) {
+  function renderPatternLearner(vals, pointEstimate) {
     const model=calculatePatternGuess(vals);
+    const point=pointEstimate || selectAdaptivePointEstimate(vals);
     $("patternModelStatus").textContent=model.status;
     $("patternGuessBand").textContent=vals.length?model.names[model.top]:"N/A";
     $("patternGuessMedian").textContent=Number.isFinite(model.bandMedian)?fmt(model.bandMedian):"N/A";
-    $("patternGuessMultiplier").textContent=Number.isFinite(model.numericGuess)?fmt(model.numericGuess):"N/A";
-    $("patternGuessConfidence").textContent=vals.length?model.numericConfidence:"WAITING FOR DATA";
+    $("patternGuessMultiplier").textContent=Number.isFinite(point.value)?fmt(point.value):"N/A";
+    $("patternGuessConfidence").textContent=vals.length
+      ? (point.ready ? `ADAPTIVE · ${point.window} ROUNDS` : `BASELINE · ${point.window} ROUNDS`)
+      : "WAITING FOR DATA";
     const numericReason=$("patternNumericReasoning");
     if(numericReason) {
       numericReason.textContent=vals.length
-        ? `The numeric test estimate is ${fmt(model.numericGuess)}, the ${model.numericSource}. Separately, the highest-scoring historical band is ${model.names[model.top]} (${(model.scores[model.top]*100).toFixed(1)} relative score). Recent band sequence: ${model.recentSequence.join(" → ")}; current band streak: ${model.currentStreak}. This rolling-median benchmark is not a known future crash point.`
-        : "Collect completed rounds to generate a tentative point guess and explain the historical evidence behind it.";
+        ? (point.ready
+          ? `Point estimate: median of the latest ${point.window} completed rounds, selected on earlier data. It was tested on ${point.holdoutCount} later holdout predictions: median absolute error ${fmt(point.holdoutMedianError)} vs rolling-50 baseline ${fmt(point.baselineMedianError)}; mean absolute error ${fmt(point.holdoutMAE)} vs ${fmt(point.baselineMAE)}. Separately, the sequence model's top-scoring band is ${model.names[model.top]} (${(model.scores[model.top]*100).toFixed(1)} relative score), with recent sequence ${model.recentSequence.join(" → ")} and current streak ${model.currentStreak}. The error difference is not proof of a repeatable edge.`
+          : `Estimate: median of the latest ${point.window} completed rounds. More history is needed to select a lookback and test it on later unseen rounds. The sequence model's highest-scoring band is ${model.names[model.top]}, but that relative score is not calibrated odds.`)
+        : "Collect completed rounds to calculate an experimental historical estimate.";
     }
     $("patternGuessScore").textContent=vals.length?`${(model.scores[model.top]*100).toFixed(1)}%`:"N/A";
     $("patternMotifHits").textContent=model.motifHits?String(model.motifHits):"0";
@@ -963,7 +1013,8 @@
 
   function render() {
     const vals = values(), n = vals.length;
-    renderPaperTracker();
+    const pointEstimate = selectAdaptivePointEstimate(vals);
+    renderPaperTracker(pointEstimate);
     $("totalRounds").textContent = n.toLocaleString();
     $("averageValue").textContent = n ? fmt(vals.reduce((a,b)=>a+b,0)/n) : "N/A";
     $("medianValue").textContent = fmt(median(vals));
@@ -971,8 +1022,8 @@
     renderPatternStats(vals);
     // Refresh the local pattern learner and ML diagnostics whenever saved history changes.
     // All features use only previously completed rounds; scores are experimental, not calibrated odds.
-    renderPatternLearner(vals);
-    renderLocalML(vals);
+    renderPatternLearner(vals,pointEstimate);
+    renderLocalML(vals,pointEstimate);
     renderAdaptiveModel(vals);
     const autoCount = rounds.filter(r => r && r.extensionId).length;
     const purgeButton = $("removeSyncedButton");
@@ -1063,9 +1114,9 @@
 
   $("paperExportButton").addEventListener("click",()=>{
     if(!paperState.results.length){alert("No paper-test scores yet. Start the test and wait for a new single-round sync.");return;}
-    const headers=["test_round","guess_created_at","observed_at","sample_size","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x"];
+    const headers=["test_round","guess_created_at","observed_at","sample_size","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x"];
     const rows=[headers,...paperState.results.map((r,i)=>[
-      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit
+      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit
     ])];
     const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
