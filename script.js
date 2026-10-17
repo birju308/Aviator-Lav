@@ -277,6 +277,7 @@
     if (!Array.isArray(message.rounds)) return;
     let added = 0;
     const newlyAdded = [];
+    const latestStoredTimestamp = rounds.reduce((max,r)=>{const t=Date.parse(r.timestamp);return Number.isFinite(t)?Math.max(max,t):max;},0);
     const existingIds = new Set(rounds.map(r => r.extensionId).filter(Boolean));
     for (const item of message.rounds) {
       if (!item || typeof item.id !== "string" || existingIds.has(item.id)) continue;
@@ -298,8 +299,8 @@
     if (added) {
       rounds = rounds.slice(-MAX_ROUNDS);
       if (paperState.active && newlyAdded.length) {
-        if (newlyAdded.length === 1) {
-          // Score the forecast that was locked before this newly observed completed result.
+        if (newlyAdded.length === 1 && Date.parse(newlyAdded[0].timestamp) > latestStoredTimestamp) {
+          // Score only a single strictly newer result that follows the locked forecast.
           settlePaperOnLiveResult(newlyAdded[0].multiplier,newlyAdded[0].timestamp);
         } else {
           // A batch cannot be safely aligned one-by-one to pending forecasts.
@@ -1286,7 +1287,11 @@
       cells.forEach((v,i)=>{const td=document.createElement("td");td.textContent=v;if(i===1)td.className=r.multiplier<2?"low":"multiplier";tr.appendChild(td);});
       const td=document.createElement("td"), btn=document.createElement("button");
       btn.type="button";btn.className="remove-button";btn.textContent="Remove";
-      btn.addEventListener("click",()=>{rounds.splice(idx,1);saveHistory();render();resetAnalysis("History changed. Run analysis again.");});
+      btn.addEventListener("click",()=>{
+        rounds.splice(idx,1);
+        if(paperState.active){paperState.pending=null;paperState.pendingRunForecasts=[];paperState.skipped++;paperState.lastMessage="History edited; locked forecast invalidated without scoring.";savePaperState();}
+        saveHistory();render();resetAnalysis("History changed. Run-length analysis refreshed.");
+      });
       td.appendChild(btn);tr.appendChild(td);body.appendChild(tr);
     });
   }
@@ -1366,7 +1371,7 @@
 
   $("paperResetButton").addEventListener("click",()=>{
     if(!confirm("Reset only the paper-test guesses and scores? Your round history will not be deleted.")) return;
-    paperState = {active:false,pending:null,results:[],skipped:0,lastMessage:"Paper-test log reset. Start again to record fresh guesses."};
+    paperState = {active:false,pending:null,results:[],pendingRunForecasts:[],skipped:0,lastMessage:"Paper-test log reset. Start again to record fresh guesses."};
     savePaperState();
     renderPaperTracker();
   });
@@ -1379,6 +1384,7 @@
     }
     if (!confirm(`Remove ${syncedCount} auto-synced result(s) from this browser? Manually entered or CSV-imported rows will be kept.`)) return;
     rounds = rounds.filter(r => !(r && r.extensionId));
+    if(paperState.active){paperState.pending=null;paperState.pendingRunForecasts=[];paperState.skipped++;paperState.lastMessage="Auto-synced history changed; locked forecast invalidated without scoring.";savePaperState();}
     saveHistory();
     render();
     analyze();
@@ -1388,7 +1394,9 @@
   $("clearButton").addEventListener("click",()=>{
     if(!rounds.length)return;
     if(!confirm("Delete all saved rounds from this browser? Export a CSV first if you need a backup."))return;
-    rounds=[];saveHistory();render();resetAnalysis("History cleared. Add completed results to begin again.");
+    rounds=[];saveHistory();
+    if(paperState.active){paperState.pending=null;paperState.pendingRunForecasts=[];paperState.skipped++;paperState.lastMessage="History cleared; no pending forecast was scored.";savePaperState();}
+    render();resetAnalysis("History cleared. Add completed results to begin again.");
   });
   $("exportButton").addEventListener("click",()=>{
     if(!rounds.length){alert("There are no rounds to export yet.");return;}
@@ -1411,7 +1419,8 @@
           rounds.push({multiplier:val,timestamp:timestamp&&Number.isFinite(Date.parse(timestamp))?new Date(timestamp).toISOString():new Date().toISOString()}); imported++;
         }
       }
-      saveHistory();render();resetAnalysis(`${imported} valid round(s) imported. Run analysis to refresh the historical reference.`);
+      if(paperState.active&&imported){paperState.skipped+=imported;paperState.pending=null;paperState.pendingRunForecasts=[];paperState.lastMessage="Skipped "+imported+" imported historical rounds; the batch cannot be aligned to a locked forecast.";savePaperState();}
+      saveHistory();render();resetAnalysis(imported+" valid round(s) imported. Run-length history refreshed.");
     }catch(_){alert("Could not read this CSV. Use a CSV exported by this app.");}
     e.target.value="";
   });
