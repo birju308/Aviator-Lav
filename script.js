@@ -34,6 +34,7 @@
       point: point.value,
       baselinePoint: median(history.slice(-Math.min(50, history.length))),
       lookbackWindow: point.window,
+      modelVersion: "adaptive-window-v1",
       band: model.top,
       bandLabel: model.names[model.top],
       modelScore: model.scores[model.top],
@@ -53,9 +54,11 @@
     $("paperStatus").textContent = paperState.active ? "PAPER TEST ACTIVE" : "PAUSED";
     $("paperNextGuess").textContent = pending ? fmt(pending.point) : (paperState.active ? "Waiting for data" : "Not started");
     $("paperNextReason").textContent = pending
-      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. Point estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the baseline comparator. Top band: ${pending.bandLabel}; sequence: ${(pending.recentSequence||[]).join(" → ")}. Relative band score ${(pending.modelScore*100).toFixed(1)}% is not calibrated odds.`
+      ? `Locked at ${new Date(pending.createdAt).toLocaleTimeString()} using ${pending.sampleSize} prior rounds. ${pending.modelVersion === "adaptive-window-v1" ? `Adaptive estimate uses the latest ${pending.lookbackWindow||50}-round median; rolling-50 is the baseline comparator.` : "This one forecast was already locked before the adaptive update; it will score as a legacy 50-round baseline."} Top band: ${pending.bandLabel}; sequence: ${(pending.recentSequence||[]).join(" → ")}. Relative band score ${(pending.modelScore*100).toFixed(1)}% is not calibrated odds.`
       : "Start paper test to lock a forecast before the next newly synced result.";
-    const results = paperState.results;
+    const allResults = paperState.results;
+    // Do not mix pre-upgrade rolling-50 guesses into the adaptive-window model's metrics.
+    const results = allResults.filter(r => r && r.modelVersion === "adaptive-window-v1");
     const bandHits = results.filter(r => r.bandHit).length;
     const nearHits = results.filter(r => r.absError <= 0.25).length;
     const errors = results.map(r => r.absError).sort((a,b)=>a-b);
@@ -75,7 +78,7 @@
         : "";
       $("paperLastOutcome").textContent = `Last scored result: model estimate ${fmt(last.guess)}, actual ${fmt(last.actual)}, absolute error ${fmt(last.absError)}${baselineText} · band ${last.bandHit?"hit":"miss"}. ${paperState.lastMessage}`;
     } else {
-      $("paperLastOutcome").textContent = paperState.lastMessage || "No paper-test rounds scored yet. Start paper test, keep both tabs open, and wait for one new round to sync.";
+      $("paperLastOutcome").textContent = `No adaptive-window paper-test rounds scored yet. ${allResults.length} earlier baseline-only record(s) remain saved but are excluded from this upgraded model's metrics. Keep both tabs open and wait for a newly synced single round.`;
     }
     $("paperStartButton").textContent = paperState.active
       ? (pending ? "Guess locked" : "Lock next guess")
@@ -109,7 +112,8 @@
       guessCreatedAt: pending.createdAt,
       observedAt: timestamp || new Date().toISOString(),
       sampleSize: pending.sampleSize,
-      guessWindow: pending.lookbackWindow || 50
+      guessWindow: pending.lookbackWindow || 50,
+      modelVersion: pending.modelVersion || "legacy_rolling50"
     };
     paperState.results.push(result);
     paperState.results = paperState.results.slice(-1000);
@@ -1114,9 +1118,9 @@
 
   $("paperExportButton").addEventListener("click",()=>{
     if(!paperState.results.length){alert("No paper-test scores yet. Start the test and wait for a new single-round sync.");return;}
-    const headers=["test_round","guess_created_at","observed_at","sample_size","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x"];
+    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x"];
     const rows=[headers,...paperState.results.map((r,i)=>[
-      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit
+      i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit
     ])];
     const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
