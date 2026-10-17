@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#10151d">
   <title>Aviator Lab | Crash Estimate</title>
-  <link rel="stylesheet" href="style.css?v=0.14.0">
+  <link rel="stylesheet" href="style.css?v=0.15.0">
 </head>
 <body>
   <main class="app-shell">
@@ -72,6 +72,7 @@
       <article class="stat-card"><span class="stat-label">Below 2x in last 20</span><strong id="recentBelowValue">N/A</strong><span class="stat-note">Recent sample only</span></article>
     </section>
     <p class="hint">These are descriptions of past rounds only. A streak does not make a higher or lower next result due.</p>
+    <div class="ai-shortcut"><a href="#experimentalPredictorLabel">↓ Open AI pattern learner &amp; next-round estimate</a><span>Experimental · no-stake testing only</span></div>
     <div class="section-label"><span class="step">05</span><span>Live paper-test validation</span></div>
     <section class="panel adaptive-panel" aria-label="Live no-stake model validation">
         <section class="paper-tracker" aria-label="Paper prediction tracking">
@@ -152,7 +153,7 @@
     </section>
 
 
-    <div class="section-label" id="experimentalPredictorLabel"><span class="step">08</span><span>Experimental crash predictor</span></div>
+    <div class="section-label" id="experimentalPredictorLabel"><span class="step">07</span><span>AI pattern learner &amp; next-round estimate</span></div>
     <section class="panel adaptive-panel" id="experimentalPredictorPanel">
       <div class="estimate-head">
         <div><p class="kicker">EXPERIMENTAL CRASH PREDICTOR</p><h2>Next-round outcome-band estimate</h2><p class="muted">Ranks multiplier bands from past results; it cannot see the next round’s hidden result.</p></div>
@@ -269,7 +270,7 @@
       <p class="disclaimer"><strong>Read carefully:</strong> This is an experimental frequency model, not a validated AI forecast. The walk-forward test is a small historical diagnostic, not evidence that it can predict independent random outcomes. It does not predict an exact multiplier or crash time. Do not use it as a betting signal.</p>
     </section>
 
-    <div class="section-label"><span class="step">07</span><span>Historical baseline</span></div>
+    <div class="section-label"><span class="step">08</span><span>Historical baseline</span></div>
     <section class="panel estimate-panel">
       <div class="estimate-head">
         <div><p class="kicker">HISTORICAL BASELINE</p><h2>Historical sample summary</h2><p class="muted">Describes past results only; it does not forecast the next crash.</p></div>
@@ -286,13 +287,13 @@
       <p class="disclaimer"><strong>Important:</strong> This estimate is based on past results only. If rounds are independently randomized, previous multipliers do not reveal the next crash point. Do not treat this as betting advice.</p>
     </section>
 
-    <div class="section-label"><span class="step">08</span><span>Saved rounds</span></div>
+    <div class="section-label"><span class="step">09</span><span>Saved rounds</span></div>
     <section class="panel history-panel">
       <div class="panel-title"><div><h2>Round history</h2><p class="muted">Newest results appear first.</p></div><span class="counter" id="historyCountSecondary">0 saved</span></div>
       <div class="table-wrap"><table><thead><tr><th>Round</th><th>Multiplier</th><th>Recorded at</th><th></th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">No results yet. Add a completed round above.</td></tr></tbody></table></div>
     </section>
     <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
-  <script src="script.js?v=0.14.0"></script>
+  <script src="script.js?v=0.15.0"></script>
 </body>
 </html>
