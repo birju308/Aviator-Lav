@@ -45,6 +45,7 @@
       runPatternScore: runPattern.probability,
       runPatternBaseline: runPattern.baselineProbability,
       runPatternContext: runPattern.context,
+      runPatternMatchedContext: runPattern.matchedContext || "",
       runPatternSupport: runPattern.support,
       runPatternDepth: runPattern.depth,
       bpForecast: runPattern.forecastType,
@@ -143,7 +144,7 @@
       paperState.skipped += 1;
       paperState.pendingRunForecasts = [];
       paperState.lastMessage = "A result arrived without a locked guess; it was not scored.";
-      paperState.pending = makePaperForecast(values());
+      paperState.pending = null;
       savePaperState();
       return;
     }
@@ -169,6 +170,7 @@
       runPatternScore:Number.isFinite(pending.runPatternScore)?pending.runPatternScore:null,
       runPatternBaseline:Number.isFinite(pending.runPatternBaseline)?pending.runPatternBaseline:null,
       runPatternContext:pending.runPatternContext || "",
+      runPatternMatchedContext:pending.runPatternMatchedContext || "",
       runPatternSupport:pending.runPatternSupport || 0,
       runPatternDepth:pending.runPatternDepth || 0,
       runSignalHit:(pending.runSignal==="P"||pending.runSignal==="B")
@@ -179,6 +181,7 @@
       bpForecast: pending.bpForecast || null,
       bpProbability: Number.isFinite(pending.bpProbability) ? pending.bpProbability : null,
       bpBaselineProbability: Number.isFinite(pending.bpBaselineProbability) ? pending.bpBaselineProbability : null,
+      bpBaselineForecast: Number.isFinite(pending.bpBaselineProbability) ? (pending.bpBaselineProbability >= 0.5 ? "P" : "B") : null,
       bpActual: actual >= 2 ? "P" : "B",
       bpHit: (pending.bpForecast==="P"||pending.bpForecast==="B") ? pending.bpForecast===(actual>=2?"P":"B") : null,
       bpBrier: Number.isFinite(pending.bpProbability) ? Math.pow(pending.bpProbability-(actual>=2?1:0),2) : null,
@@ -1362,8 +1365,8 @@
 
   $("paperExportButton").addEventListener("click",()=>{
     if(!paperState.results.length){alert("No paper-test scores yet. Start the test and wait for a new single-round sync.");return;}
-    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","pattern_version","run_length_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x","run_signal","run_score_at_least_2x","run_baseline_2x_share","run_context","run_context_support","run_signal_hit","bp_forecast","bp_probability_P","bp_baseline_probability_P","bp_actual","bp_hit","bp_brier","bp_baseline_hit","bp_baseline_brier","run_current_type","run_current_length","run_length_category_guess","run_length_distribution_json","run_length_actual_length","run_length_actual_category","run_length_hit","run_length_baseline_hit"];
-    const rows=[headers,...paperState.results.map((r,i)=>[i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.patternVersion||"",r.runLengthVersion||"",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit,r.runSignal||"",r.runPatternScore,r.runPatternBaseline,r.runPatternContext||"",r.runPatternSupport||0,r.runSignalHit,r.bpForecast||"",r.bpProbability,r.bpBaselineProbability,r.bpActual||"",r.bpHit,r.bpBrier,r.bpBaselineHit,r.bpBaselineBrier,r.runCurrentType||"",r.runCurrentLength||"",r.runLengthCategoryGuess||"",JSON.stringify(r.runLengthDistribution||{}),r.runLengthActualLength||"",r.runLengthActualCategory||"",r.runLengthHit,r.runLengthBaselineHit])];
+    const headers=["test_round","guess_created_at","observed_at","sample_size","forecast_version","pattern_version","run_length_version","guess_window_rounds","model_guess","actual_multiplier","model_abs_error","rolling50_median_guess","baseline_abs_error","model_band","actual_band","band_hit","within_0_25x","run_signal","run_score_at_least_2x","run_baseline_2x_share","run_context","run_context_support","run_selected_pattern","run_signal_hit","bp_forecast","bp_probability_P","bp_baseline_probability_P","bp_baseline_forecast","bp_actual","bp_hit","bp_brier","bp_baseline_hit","bp_baseline_brier","run_current_type","run_current_length","run_length_category_guess","run_length_distribution_json","run_length_actual_length","run_length_actual_category","run_length_hit","run_length_baseline_hit"];
+    const rows=[headers,...paperState.results.map((r,i)=>[i+1,r.guessCreatedAt,r.observedAt,r.sampleSize,r.modelVersion||"legacy_rolling50",r.patternVersion||"",r.runLengthVersion||"",r.guessWindow||50,r.guess,r.actual,r.absError,r.baselineGuess,r.baselineAbsError,r.guessBand,r.actualBand,r.bandHit,r.nearHit,r.runSignal||"",r.runPatternScore,r.runPatternBaseline,r.runPatternContext||"",r.runPatternSupport||0,r.runPatternMatchedContext||"",r.runSignalHit,r.bpForecast||"",r.bpProbability,r.bpBaselineProbability,r.bpBaselineForecast||"",r.bpActual||"",r.bpHit,r.bpBrier,r.bpBaselineHit,r.bpBaselineBrier,r.runCurrentType||"",r.runCurrentLength||"",r.runLengthCategoryGuess||"",JSON.stringify(r.runLengthDistribution||{}),r.runLengthActualLength||"",r.runLengthActualCategory||"",r.runLengthHit,r.runLengthBaselineHit])];
     const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
     a.href=url;a.download="aviator-paper-test.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
