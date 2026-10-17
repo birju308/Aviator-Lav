@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#10151d">
   <title>Aviator Lab | Crash Estimate</title>
-  <link rel="stylesheet" href="style.css?v=0.19.0">
+  <link rel="stylesheet" href="style.css?v=0.20.0">
 </head>
 <body>
   <main class="app-shell">
@@ -91,6 +91,16 @@
             <article class="stat-card"><span class="stat-label">Within ±0.25x</span><strong id="paperNearRate">N/A</strong><span class="stat-note">Point-guess tolerance</span></article>
             <article class="stat-card"><span class="stat-label">Rolling-50 baseline error</span><strong id="paperBaselineError">N/A</strong><span id="paperBaselineNote" class="stat-note">Comparable rounds</span></article>
             <article class="stat-card"><span class="stat-label">Streak-signal hit rate</span><strong id="paperRunPatternRate">N/A</strong><span id="paperRunPatternNote" class="stat-note">Directional run-pattern calls only</span></article>
+          </div>
+          <div class="pattern-learner-grid paper-metrics paper-bp-metrics">
+            <article class="stat-card"><span class="stat-label">B/P accuracy</span><strong id="paperBPAccuracy">N/A</strong><span class="stat-note" id="paperBPNote">New v2 results only</span></article>
+            <article class="stat-card"><span class="stat-label">B/P baseline accuracy</span><strong id="paperBPBaselineAccuracy">N/A</strong><span class="stat-note">Same scored rounds</span></article>
+            <article class="stat-card"><span class="stat-label">Brier score</span><strong id="paperBPBrier">N/A</strong><span class="stat-note">B/P model; lower is better</span></article>
+            <article class="stat-card"><span class="stat-label">Baseline Brier</span><strong id="paperBPBrierBaseline">N/A</strong><span class="stat-note">Same scored rounds</span></article>
+            <article class="stat-card"><span class="stat-label">B/P scores</span><strong id="paperBPCount">0</strong><span class="stat-note">New model only</span></article>
+            <article class="stat-card"><span class="stat-label">Run-length accuracy</span><strong id="paperRunLengthAccuracy">N/A</strong><span class="stat-note" id="paperRunLengthNote">Scored when a run ends</span></article>
+            <article class="stat-card"><span class="stat-label">Length baseline accuracy</span><strong id="paperRunLengthBaseline">N/A</strong><span class="stat-note">Same resolved runs</span></article>
+            <article class="stat-card"><span class="stat-label">Run-length scores</span><strong id="paperRunLengthCount">0</strong><span class="stat-note">Only resolved lengths</span></article>
           </div>
           <div class="paper-controls">
             <button id="paperStartButton" class="button primary" type="button">Start paper test</button>
@@ -233,12 +243,33 @@
           <div class="pattern-evidence"><span class="stat-label">Last 4 bands</span><strong id="patternRecentSequence">N/A</strong></div>
           <div class="pattern-evidence"><span class="stat-label">After current band</span><strong id="patternTransitionEvidence">N/A</strong></div>
         </div>
-        <section class="pattern-evidence-grid" aria-label="Run-length pattern model">
-          <div class="pattern-evidence"><span class="stat-label">Recent B/P run sequence</span><strong id="runPatternSequence">N/A</strong></div>
-          <div class="pattern-evidence"><span class="stat-label">Run-pattern lean</span><strong id="runPatternSignal">N/A</strong><span class="stat-note" id="runPatternScore">Historical score, not odds</span></div>
-          <div class="pattern-evidence"><span class="stat-label">Matching run context</span><strong id="runPatternSupport">N/A</strong></div>
+        <section class="run-length-panel" aria-label="B/P run-length pattern model">
+          <div class="panel-title"><div><h3>Run-length learner · B/P streak model v2</h3><p class="muted">B = below 2.00x, P = 2.00x or above. The current run remains open until the opposite category appears.</p></div><span class="estimate-status">ROLLING TEST</span></div>
+          <div class="pattern-learner-grid">
+            <article class="stat-card"><span class="stat-label">Current run</span><strong id="runLengthCurrentRun">N/A</strong><span class="stat-note">Exact current run</span></article>
+            <article class="stat-card"><span class="stat-label">Next-round category</span><strong id="runLengthNextClass">N/A</strong><span class="stat-note">B/P classification only</span></article>
+            <article class="stat-card"><span class="stat-label">Smoothed forecast score</span><strong id="runLengthNextProbability">N/A</strong><span class="stat-note" id="runLengthNextBaseline">Baseline unavailable</span></article>
+            <article class="stat-card"><span class="stat-label">Matched context</span><strong id="runLengthNextSupport">N/A</strong><span class="stat-note">Context requires 8 matches</span></article>
+          </div>
+          <div class="pattern-evidence-grid"><div class="pattern-evidence"><span class="stat-label">Recent run sequence</span><strong id="runLengthRecentSequence">N/A</strong></div><div class="pattern-evidence"><span class="stat-label">Estimated final length of current run</span><strong id="runLengthLengthGuess">N/A</strong><span class="stat-note" id="runLengthLengthSupport">N/A</span></div><div class="pattern-evidence"><span class="stat-label">Recent P share</span><strong id="runLengthRecentVsOverall">N/A</strong></div></div>
+          <div class="run-length-distribution"><h4>Possible final length of the current run</h4><p class="hint">Historical distribution conditioned on the length already reached. Shorter categories are excluded; the final length is not yet known.</p><div class="run-length-dist-grid">
+            <div><span>1 round</span><strong id="runLengthLen1">N/A</strong><small id="runLengthBase1"></small></div><div><span>2 rounds</span><strong id="runLengthLen2">N/A</strong><small id="runLengthBase2"></small></div><div><span>3 rounds</span><strong id="runLengthLen3">N/A</strong><small id="runLengthBase3"></small></div><div><span>4+ rounds</span><strong id="runLengthLen4">N/A</strong><small id="runLengthBase4plus"></small></div>
+          </div></div>
+          <div class="pattern-evidence"><span class="stat-label">Observed exact run-length frequencies</span><strong id="runLengthFrequencySummary">No completed runs</strong></div>
+          <div class="model-comparison-wrap"><h4>Recent historical run patterns and what followed</h4><p class="hint">Run lengths are grouped into 1, 2, 3 and 4+ for matching. Counts list historical follow-ups for recent completed-run suffixes.</p><div class="table-wrap"><table class="model-comparison-table run-length-pattern-table"><thead><tr><th>Historical run pattern</th><th>Matches</th><th>Following run counts</th></tr></thead><tbody id="runLengthPatternRows"><tr><td colspan="3" class="empty">Need completed history.</td></tr></tbody></table></div></div>
+          <div class="model-comparison-wrap"><h4>Chronological out-of-sample validation</h4><p class="hint">B/P forecasts use only earlier rounds. Run-length forecasts are made at a holdout run's start and scored after that run ends. The final unfinished run is excluded.</p><div class="pattern-learner-grid run-length-validation-grid">
+            <article class="stat-card"><span class="stat-label">B/P test rounds</span><strong id="runLengthOosN">N/A</strong><span class="stat-note">Later 30% holdout</span></article>
+            <article class="stat-card"><span class="stat-label">B/P accuracy</span><strong id="runLengthOosAccuracy">N/A</strong><span class="stat-note">Pattern model</span></article>
+            <article class="stat-card"><span class="stat-label">Baseline accuracy</span><strong id="runLengthOosBaselineAccuracy">N/A</strong><span class="stat-note">Prior-only baseline</span></article>
+            <article class="stat-card"><span class="stat-label">B/P Brier score</span><strong id="runLengthOosBrier">N/A</strong><span class="stat-note">Lower is better</span></article>
+            <article class="stat-card"><span class="stat-label">Baseline Brier</span><strong id="runLengthOosBaselineBrier">N/A</strong><span class="stat-note">Same test rounds</span></article>
+            <article class="stat-card"><span class="stat-label">Supported calls</span><strong id="runLengthSupportedCalls">N/A</strong><span class="stat-note">At least 8 matches</span></article>
+            <article class="stat-card"><span class="stat-label">Completed holdout runs</span><strong id="runLengthLenN">N/A</strong><span class="stat-note">Run starts in holdout</span></article>
+            <article class="stat-card"><span class="stat-label">Run-length accuracy</span><strong id="runLengthLenAccuracy">N/A</strong><span class="stat-note">Pattern model</span></article>
+            <article class="stat-card"><span class="stat-label">Length baseline accuracy</span><strong id="runLengthLenBaselineAccuracy">N/A</strong><span class="stat-note">Same resolved runs</span></article>
+          </div><p class="hint" id="runLengthLenSupported">N/A</p><p class="analysis-output" id="runLengthTestNote">Add rounds to evaluate chronologically.</p></div>
+          <div class="pattern-evidence-grid"><div class="pattern-evidence"><span class="stat-label">Run context</span><strong id="runPatternSequence">N/A</strong></div><div class="pattern-evidence"><span class="stat-label">Directional context signal</span><strong id="runPatternSignal">N/A</strong><span class="stat-note" id="runPatternScore">Historical score, not odds</span></div><div class="pattern-evidence"><span class="stat-label">Context support</span><strong id="runPatternSupport">N/A</strong></div></div><p id="runPatternValidation" class="analysis-output">Collect rounds to replay run-length patterns chronologically.</p>
         </section>
-        <p id="runPatternValidation" class="analysis-output">Collect completed rounds to replay run-length patterns chronologically.</p>
         <div id="patternExplanation" class="analysis-output">Collect completed rounds to let the pattern learner inspect the sequence.</div>
         <p class="disclaimer"><strong>Test mode only:</strong> this learns visible patterns from saved outcomes, not hidden game inputs. The candidate band and midpoint can be wrong; do not treat the score as a real probability or betting signal. Exact crash time/multiplier cannot be reliably predicted.</p>
       </div>
@@ -314,6 +345,6 @@
     </section>
     <footer><span class="footer-mark">✦</span> Aviator Lab <span>·</span> Local extension sync <span>·</span> Historical analysis only <span>·</span> No guaranteed predictions</footer>
   </main>
-  <script src="script.js?v=0.19.0"></script>
+  <script src="script.js?v=0.20.0"></script>
 </body>
 </html>
