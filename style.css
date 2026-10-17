@@ -169,9 +169,13 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 @media(max-width:420px){.local-ml-point-test{grid-template-columns:1fr}}
 
 
-/* Completed-round fairness verifier: visible utility, not a predictor */
+/* The experimental AI pattern learner is visible and refreshed by script.js. */
 #experimentalPredictorLabel,
-#experimentalPredictorPanel{display:none!important}
+#experimentalPredictorPanel{scroll-margin-top:18px}
+.ai-shortcut{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:-5px 0 20px;padding:12px 14px;border:1px solid #514663;border-radius:10px;background:linear-gradient(105deg,#211d2b,#151e29)}
+.ai-shortcut a{color:#d4c1ff;text-decoration:none;font-weight:800;font-size:.85rem}
+.ai-shortcut a:hover{text-decoration:underline}
+.ai-shortcut span{color:var(--muted);font-size:.72rem}
 .verifier-panel{background:linear-gradient(145deg,#1b242f,#171e28 72%,#1e222d);border-color:#465260}
 .verifier-panel h2{font-size:1.2rem}
 .verifier-privacy{padding:10px 12px;background:#111821;border:1px solid #303c49;border-radius:9px;margin:0 0 16px}
