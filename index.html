@@ -193,6 +193,19 @@
               <div><span class="stat-label">Median error vs baseline</span><strong id="localMLPointDelta">N/A</strong></div>
             </div>
             <p id="localMLNumericExplanation" class="analysis-output">Collect completed rounds; a chronological holdout will compare the selected median window with a rolling-50 baseline.</p>
+            <div class="adaptive-probability-card">
+              <div class="adaptive-probability-head">
+                <h3>Recent-window outcome distribution</h3>
+                <p id="adaptiveBandWindowNote">Historical frequency shares from the selected window. These are not calibrated future odds or an exact crash prediction.</p>
+              </div>
+              <div class="adaptive-probability-grid">
+                <div class="adaptive-probability-row"><div class="adaptive-probability-title"><span>1.00x–1.99x</span><strong id="adaptiveBandP0">N/A</strong></div><div class="adaptive-probability-track"><div id="adaptiveBandBar0"></div></div><small id="adaptiveBandCI0">Not enough data</small></div>
+                <div class="adaptive-probability-row"><div class="adaptive-probability-title"><span>2.00x–4.99x</span><strong id="adaptiveBandP1">N/A</strong></div><div class="adaptive-probability-track"><div id="adaptiveBandBar1"></div></div><small id="adaptiveBandCI1">Not enough data</small></div>
+                <div class="adaptive-probability-row"><div class="adaptive-probability-title"><span>5.00x–9.99x</span><strong id="adaptiveBandP2">N/A</strong></div><div class="adaptive-probability-track"><div id="adaptiveBandBar2"></div></div><small id="adaptiveBandCI2">Not enough data</small></div>
+                <div class="adaptive-probability-row"><div class="adaptive-probability-title"><span>10.00x+</span><strong id="adaptiveBandP3">N/A</strong></div><div class="adaptive-probability-track"><div id="adaptiveBandBar3"></div></div><small id="adaptiveBandCI3">Not enough data</small></div>
+              </div>
+              <p class="adaptive-probability-foot">Each percentage is the observed share in that historical window; the 95% interval reflects sampling uncertainty in that share only. It does not reveal the next hidden crash point.</p>
+            </div>
           </section>
           <div class="local-ml-test">
             <div><span class="stat-label">Frozen chronological holdout</span><strong id="localMLHoldout">N/A</strong></div>
