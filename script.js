@@ -667,9 +667,25 @@
     const n = history.length;
     const fallbackWindow = Math.min(50,n);
     const fallbackValue = n ? median(history.slice(-fallbackWindow)) : NaN;
+    const distributionFor = windowSize => {
+      const sample = history.slice(-Math.min(windowSize,n));
+      const counts = [0,0,0,0];
+      sample.forEach(value => counts[outcomeBand(value)]++);
+      const z = 1.96;
+      return counts.map((count,band) => {
+        const sampleSize = sample.length;
+        if (!sampleSize) return {band,count,share:0,lower:0,upper:1,sampleSize:0};
+        const p = count/sampleSize;
+        const den = 1 + z*z/sampleSize;
+        const center = (p + z*z/(2*sampleSize))/den;
+        const margin = z*Math.sqrt(p*(1-p)/sampleSize + z*z/(4*sampleSize*sampleSize))/den;
+        return {band,count,share:p,lower:Math.max(0,center-margin),upper:Math.min(1,center+margin),sampleSize};
+      });
+    };
     if (n < 160) {
       return {ready:false,window:fallbackWindow,value:fallbackValue,developmentCount:0,holdoutCount:0,
-        holdoutMedianError:NaN,baselineMedianError:NaN,holdoutMAE:NaN,baselineMAE:NaN};
+        holdoutMedianError:NaN,baselineMedianError:NaN,holdoutMAE:NaN,baselineMAE:NaN,
+        distribution:distributionFor(fallbackWindow)};
     }
     const warmup = Math.min(50,Math.max(30,Math.floor(n*0.12)));
     // Bound work when users have thousands of saved rounds; all prediction rows remain chronological.
@@ -711,7 +727,8 @@
       holdoutMedianError:median(modelErrors),
       baselineMedianError:median(baselineErrors),
       holdoutMAE:mean(modelErrors),
-      baselineMAE:mean(baselineErrors)
+      baselineMAE:mean(baselineErrors),
+      distribution:distributionFor(selectedWindow)
     };
   }
 
