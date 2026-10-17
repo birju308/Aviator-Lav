@@ -36,7 +36,7 @@ The **Remove auto-synced results (N)** button removes only records tagged as Chr
 
 ## Current visible features
 
-The visible site focuses on completed-round statistics and a local Provably Fair verifier. Numeric next-round guesses and machine-learning prediction cards are hidden, and the old paper-prediction logging is paused, because previous tests did not establish predictive edge over simple historical baselines.
+The experimental AI pattern learner is visible in the page and refreshes when saved history changes. It includes a transparent sequence/streak model, an in-browser logistic-regression classifier, a numeric regression estimate, a frequency-based candidate set, chronological walk-forward comparison, and a later holdout compared with a simple baseline. A shortcut beside the historical pattern snapshot jumps directly to the learner. All model scores and numeric estimates remain experimental and uncalibrated; the panel explicitly reports when the model does not demonstrate an edge over the baseline. The paper tracker remains no-stake only.
 
 ## Completed-round Provably Fair verifier
 
