@@ -198,3 +198,17 @@ footer{display:flex;justify-content:center;align-items:center;gap:9px;flex-wrap:
 .verifier-hash-output{font: .7rem/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all;color:#aab8ca;margin:8px 0 0;user-select:text}
 @media(max-width:700px){.verifier-results{grid-template-columns:repeat(2,minmax(0,1fr))}.verifier-seeds{grid-template-columns:1fr}}
 @media(max-width:420px){.verifier-results{grid-template-columns:1fr}.verifier-actions{display:grid;grid-template-columns:1fr}.verifier-actions .button{width:100%}}
+
+/* Historical window distribution with honest uncertainty intervals */
+.adaptive-probability-card{margin:16px 0 4px;padding:15px;background:#101821;border:1px solid #3d4a57;border-radius:12px}
+.adaptive-probability-head h3{font-size:1rem;margin:0 0 5px}
+.adaptive-probability-head p,.adaptive-probability-foot{margin:0;color:var(--muted);font-size:.78rem;line-height:1.55}
+.adaptive-probability-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px 20px;margin:16px 0}
+.adaptive-probability-row{min-width:0}
+.adaptive-probability-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:.83rem;color:#d7dfe7}
+.adaptive-probability-title strong{color:var(--accent2)}
+.adaptive-probability-track{height:7px;overflow:hidden;border-radius:8px;background:#2c3743}
+.adaptive-probability-track div{height:100%;width:0;border-radius:8px;background:var(--accent2);transition:width .2s ease}
+.adaptive-probability-row small{display:block;margin-top:6px;color:var(--muted);font-size:.7rem;line-height:1.5}
+.adaptive-probability-foot{border-top:1px solid #303c49;padding-top:12px}
+@media(max-width:600px){.adaptive-probability-grid{grid-template-columns:1fr;gap:13px}}
