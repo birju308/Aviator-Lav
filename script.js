@@ -785,6 +785,23 @@
 
     // Use a robust point estimator selected on early data, not a regressor that failed to beat the median baseline.
     const point = pointEstimate || selectAdaptivePointEstimate(vals);
+    const distribution = point.distribution || [];
+    const distributionNote = $("adaptiveBandWindowNote");
+    if (distributionNote) distributionNote.textContent = distribution.length
+      ? `Observed frequencies from the latest ${Math.min(point.window,vals.length)} completed rounds. These percentages describe that sample; they are not calibrated odds for the next result.`
+      : "Add completed rounds to calculate historical frequencies.";
+    for (let k=0;k<4;k++) {
+      const item = distribution[k];
+      const percent = item ? item.share*100 : 0;
+      const valueNode = $(`adaptiveBandP${k}`);
+      const barNode = $(`adaptiveBandBar${k}`);
+      const intervalNode = $(`adaptiveBandCI${k}`);
+      if (valueNode) valueNode.textContent = item && item.sampleSize ? percent.toFixed(1)+"%" : "N/A";
+      if (barNode) barNode.style.width = percent.toFixed(1)+"%";
+      if (intervalNode) intervalNode.textContent = item && item.sampleSize
+        ? `${item.count}/${item.sampleSize} past rounds · 95% sample-share interval ${(item.lower*100).toFixed(1)}–${(item.upper*100).toFixed(1)}%`
+        : "Not enough data";
+    }
     $("localMLNumericGuess").textContent = Number.isFinite(point.value) ? fmt(point.value) : "N/A";
     $("localMLPointMedianError").textContent = point.ready ? fmt(point.holdoutMedianError) : "N/A";
     $("localMLPointBaselineMedianError").textContent = point.ready ? fmt(point.baselineMedianError) : "N/A";
