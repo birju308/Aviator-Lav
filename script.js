@@ -969,6 +969,11 @@
     $("medianValue").textContent = fmt(median(vals));
     $("belowTwoValue").textContent = n ? pct(vals.filter(v=>v<2).length,n) : "N/A";
     renderPatternStats(vals);
+    // Refresh the local pattern learner and ML diagnostics whenever saved history changes.
+    // All features use only previously completed rounds; scores are experimental, not calibrated odds.
+    renderPatternLearner(vals);
+    renderLocalML(vals);
+    renderAdaptiveModel(vals);
     const autoCount = rounds.filter(r => r && r.extensionId).length;
     const purgeButton = $("removeSyncedButton");
     if (purgeButton) purgeButton.textContent = `Remove auto-synced results (${autoCount})`;
