@@ -460,106 +460,62 @@
 
 
 
-  // Run-length pattern model: B = below 2x, P = 2x or above.
-  // It builds only from completed history and uses prior-only, walk-forward replay.
-  function calculateRunLengthSignal(history) {
-    const n = history.length;
-    const empty = {
-      probability:0.5, baselineProbability:0.5, signal:"N", support:0, depth:0,
-      context:"N/A", holdoutN:0, holdoutHits:0, baselineHits:0, signalN:0,
-      signalHits:0, holdoutAccuracy:NaN, baselineAccuracy:NaN,
-      signalAccuracy:NaN, signalCoverage:NaN
-    };
-    if (!n) return empty;
 
-    const code = run => run.type + (run.len === 1 ? "1" : run.len === 2 ? "2" : "3+");
-    const contextKeys = Array.from({length:n + 1}, () => Array(5).fill(""));
-    const stack = [];
-    const pushRun = value => {
-      const type = value < 2 ? "B" : "P";
-      const last = stack[stack.length - 1];
-      if (last && last.type === type) last.len++;
-      else stack.push({type,len:1});
-    };
-    for (let i = 0; i <= n; i++) {
-      for (let k = 1; k <= 4; k++) {
-        if (stack.length >= k) contextKeys[i][k] = stack.slice(-k).map(code).join("|");
-      }
-      if (i < n) pushRun(history[i]);
-    }
-
-    const maps = {1:new Map(),2:new Map(),3:new Map(),4:new Map()};
-    let observed = 0, pays = 0;
-    let holdoutN = 0, holdoutHits = 0, baselineHits = 0;
-    let signalN = 0, signalHits = 0;
-    const holdoutStart = Math.floor(n * 0.70);
-    const choose = (keys, baseProbability) => {
-      for (let k = 4; k >= 1; k--) {
-        const key = keys[k];
-        if (!key) continue;
-        const record = maps[k].get(key);
-        if (record && record.n >= 8) {
-          const priorStrength = 10;
-          return {
-            probability:(record.pays + priorStrength * baseProbability) / (record.n + priorStrength),
-            baselineProbability:baseProbability, support:record.n, depth:k, key
-          };
-        }
-      }
-      return {probability:baseProbability, baselineProbability:baseProbability, support:0, depth:0, key:""};
-    };
-
-    for (let i = 1; i < n; i++) {
-      const baseProbability = (pays + 1) / (observed + 2);
-      const prediction = choose(contextKeys[i], baseProbability);
-      const actual = history[i] >= 2 ? 1 : 0;
-      if (n >= 100 && i >= holdoutStart) {
-        holdoutN++;
-        if ((prediction.probability >= 0.5 ? 1 : 0) === actual) holdoutHits++;
-        if ((baseProbability >= 0.5 ? 1 : 0) === actual) baselineHits++;
-        let direction = null;
-        if (prediction.support >= 8 && prediction.probability >= baseProbability + 0.04) direction = 1;
-        else if (prediction.support >= 8 && prediction.probability <= baseProbability - 0.04) direction = 0;
-        if (direction !== null) {
-          signalN++;
-          if (direction === actual) signalHits++;
-        }
-      }
-
-      for (let k = 1; k <= 4; k++) {
-        const key = contextKeys[i][k];
-        if (!key) continue;
-        const record = maps[k].get(key) || {n:0,pays:0};
-        record.n++;
-        record.pays += actual;
-        maps[k].set(key, record);
-      }
-      observed++;
-      pays += actual;
-    }
-
-    const baselineProbability = (pays + 1) / (observed + 2);
-    const current = choose(contextKeys[n], baselineProbability);
-    let signal = "N";
-    if (current.support >= 8 && current.probability >= baselineProbability + 0.04) signal = "P";
-    else if (current.support >= 8 && current.probability <= baselineProbability - 0.04) signal = "B";
-
-    return {
-      probability:current.probability,
-      baselineProbability,
-      signal,
-      support:current.support,
-      depth:current.depth,
-      matchedContext:current.key,
-      context:stack.slice(-4).map(code).join(" → "),
-      holdoutN, holdoutHits, baselineHits, signalN, signalHits,
-      holdoutAccuracy:holdoutN ? holdoutHits / holdoutN : NaN,
-      baselineAccuracy:holdoutN ? baselineHits / holdoutN : NaN,
-      signalAccuracy:signalN ? signalHits / signalN : NaN,
-      signalCoverage:holdoutN ? signalN / holdoutN : NaN
-    };
+  function runLengthRunsForHistory(history) {
+    const runs=[];
+    for(let i=0;i<history.length;i++){const type=history[i]>=2?"P":"B",last=runs[runs.length-1];if(last&&last.type===type){last.len++;last.end=i;}else runs.push({type,len:1,start:i,end:i});}
+    return runs;
   }
-
+  function runLengthCategoryForLength(length){return length<=1?"1":length===2?"2":length===3?"3":"4+";}
+  function runLengthBucketForRun(run){return run.type+runLengthCategoryForLength(run.len);}
+  function runLengthExactLabel(run){return run.type+String(run.len);}
+  function runLengthBestCategory(distribution){return ["1","2","3","4+"].reduce((best,k)=>(distribution[k]||0)>(distribution[best]||0)?k:best,"1");}
+  function estimateRunLengthDistribution(history){
+    const runs=runLengthRunsForHistory(history),empty={"1":0.25,"2":0.25,"3":0.25,"4+":0.25};
+    if(!runs.length)return {distribution:empty,baselineDistribution:empty,guess:"N/A",support:0,contextSupport:0,contextDepth:0,currentType:"N",currentLength:0};
+    const current=runs[runs.length-1],complete=runs.slice(0,-1),allowed=["1","2","3","4+"].filter(cat=>(cat==="4+"?4:Number(cat))>=current.len),permitted=allowed.length?allowed:["4+"];
+    const countsFor=pool=>{const counts={"1":0,"2":0,"3":0,"4+":0};for(const run of pool){if(run.len<current.len)continue;const cat=runLengthCategoryForLength(run.len);if(permitted.includes(cat))counts[cat]++;}return counts;};
+    const typePool=complete.filter(run=>run.type===current.type&&run.len>=current.len);let basePool=typePool.length?typePool:complete.filter(run=>run.len>=current.len);if(!basePool.length)basePool=complete;
+    const priorCounts=countsFor(basePool),priorTotal=permitted.reduce((sum,cat)=>sum+priorCounts[cat],0),denom=priorTotal+permitted.length;
+    const baselineDistribution={"1":0,"2":0,"3":0,"4+":0};for(const cat of permitted)baselineDistribution[cat]=(priorCounts[cat]+1)/denom;
+    const recentContext=runs.slice(0,-1).slice(-3).map(runLengthBucketForRun);let matchedRuns=[],contextDepth=0,context="";
+    for(let depth=Math.min(3,recentContext.length);depth>=1;depth--){const wanted=recentContext.slice(-depth),matches=[];
+      for(let i=depth;i<complete.length;i++){const candidate=complete[i];if(candidate.type!==current.type||candidate.len<current.len)continue;const preceding=complete.slice(i-depth,i).map(runLengthBucketForRun);if(preceding.every((c,j)=>c===wanted[j]))matches.push(candidate);}
+      if(matches.length>=5){matchedRuns=matches;contextDepth=depth;context=wanted.join(" → ");break;}}
+    const distribution={"1":0,"2":0,"3":0,"4+":0};
+    if(matchedRuns.length){const matchedCounts=countsFor(matchedRuns),shrink=8;for(const cat of permitted)distribution[cat]=(matchedCounts[cat]+shrink*baselineDistribution[cat])/(matchedRuns.length+shrink);}
+    else for(const cat of permitted)distribution[cat]=baselineDistribution[cat];
+    const sum=permitted.reduce((a,k)=>a+distribution[k],0)||1;for(const cat of permitted)distribution[cat]/=sum;
+    return {distribution,baselineDistribution,guess:runLengthBestCategory(distribution),support:typePool.length,contextSupport:matchedRuns.length,contextDepth,context:context||"No context met the 5-match threshold",currentType:current.type,currentLength:current.len};
+  }
+  function calculateRunLengthSignal(history,options){
+    options=options||{};const n=history.length,emptyDist={"1":0.25,"2":0.25,"3":0.25,"4+":0.25};
+    const empty={probability:0.5,baselineProbability:0.5,signal:"N",forecastType:"B",support:0,depth:0,context:"N/A",holdoutN:0,holdoutHits:0,baselineHits:0,signalN:0,signalHits:0,holdoutAccuracy:NaN,baselineAccuracy:NaN,signalAccuracy:NaN,signalCoverage:NaN,brierScore:NaN,baselineBrierScore:NaN,supportedPredictions:0,currentRunLabel:"N/A",currentRunType:"N",currentRunLength:0,currentRunStart:-1,recentPayRate:NaN,runLengthDistribution:emptyDist,runLengthBaselineDistribution:emptyDist,runLengthGuess:"N/A",runLengthSupport:0,runLengthContextSupport:0,runLengthContextDepth:0,runLengthHoldoutN:0,runLengthHoldoutHits:0,runLengthBaselineHits:0,runLengthAccuracy:NaN,runLengthBaselineAccuracy:NaN,runLengthSupported:0,runLengthFrequencySummary:"No completed runs",exactRunFrequencies:[],patternMatches:[]};
+    if(!n)return empty;
+    const runs=runLengthRunsForHistory(history),prefixKeys=Array.from({length:n+1},()=>Array(5).fill("")),stack=[];
+    const pushRun=v=>{const type=v>=2?"P":"B",last=stack[stack.length-1];if(last&&last.type===type)last.len++;else stack.push({type,len:1});};
+    for(let i=0;i<=n;i++){for(let k=1;k<=4;k++)if(stack.length>=k)prefixKeys[i][k]=stack.slice(-k).map(runLengthBucketForRun).join("|");if(i<n)pushRun(history[i]);}
+    const maps={1:new Map(),2:new Map(),3:new Map(),4:new Map()};let observed=0,pays=0,holdoutN=0,holdoutHits=0,baselineHits=0,signalN=0,signalHits=0,brierSum=0,baselineBrierSum=0,supportedPredictions=0;
+    const holdoutStart=n>=40?Math.floor(n*0.70):n;
+    const choose=(keys,base)=>{for(let k=4;k>=1;k--){const key=keys[k],rec=key?maps[k].get(key):null;if(rec&&rec.n>=8){const shrink=12;return {probability:(rec.pays+shrink*base)/(rec.n+shrink),baselineProbability:base,support:rec.n,depth:k,key};}}return {probability:base,baselineProbability:base,support:0,depth:0,key:""};};
+    for(let i=0;i<n;i++){const base=(pays+1)/(observed+2),pred=choose(prefixKeys[i],base),actual=history[i]>=2?1:0;
+      if(i>=holdoutStart){holdoutN++;if((pred.probability>=0.5?1:0)===actual)holdoutHits++;if((base>=0.5?1:0)===actual)baselineHits++;brierSum+=(pred.probability-actual)**2;baselineBrierSum+=(base-actual)**2;if(pred.support>=8)supportedPredictions++;if(pred.support>=8&&Math.abs(pred.probability-base)>=0.04){signalN++;if((pred.probability>base?1:0)===actual)signalHits++;}}
+      for(let k=1;k<=4;k++){const key=prefixKeys[i][k];if(!key)continue;const rec=maps[k].get(key)||{n:0,pays:0};rec.n++;rec.pays+=actual;maps[k].set(key,rec);}observed++;pays+=actual;}
+    const baselineProbability=(pays+1)/(observed+2),current=choose(prefixKeys[n],baselineProbability);let signal="N";if(current.support>=8&&current.probability>=baselineProbability+0.04)signal="P";else if(current.support>=8&&current.probability<=baselineProbability-0.04)signal="B";
+    const currentRun=runs[runs.length-1],lengthModel=estimateRunLengthDistribution(history),recent=history.slice(-Math.min(50,n)),completed=runs.slice(0,-1),recentPayRate=recent.filter(v=>v>=2).length/recent.length;
+    const exactCounts=new Map();for(const run of completed){const label=runLengthExactLabel(run);exactCounts.set(label,(exactCounts.get(label)||0)+1);}
+    const exactRunFrequencies=Array.from(exactCounts.entries()).map(([label,count])=>({label,count})).sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
+    const runLengthFrequencySummary=exactRunFrequencies.length?exactRunFrequencies.map(x=>x.label+" × "+x.count).join(" · "):"No completed runs yet";
+    const patternMatches=[];
+    if(!options.skipHistoryPatternMatches)for(let depth=Math.min(4,completed.length);depth>=1;depth--){const pat=completed.slice(-depth).map(runLengthBucketForRun),counts=new Map();let matches=0;
+      for(let end=depth;end<completed.length;end++){const before=completed.slice(end-depth,end).map(runLengthBucketForRun);if(!pat.every((x,j)=>x===before[j]))continue;const next=runLengthBucketForRun(completed[end]);counts.set(next,(counts.get(next)||0)+1);matches++;}
+      if(matches){const order=["B1","B2","B3","B4+","P1","P2","P3","P4+"],followSummary=order.filter(x=>counts.has(x)).map(x=>x+": "+counts.get(x)).join(" · "),b=Array.from(counts).filter(([k])=>k[0]==="B").reduce((s,[,v])=>s+v,0),p=Array.from(counts).filter(([k])=>k[0]==="P").reduce((s,[,v])=>s+v,0);patternMatches.push({depth,pattern:pat.join(" → "),matches,followSummary,bpSummary:"B "+b+" / P "+p});}}
+    let runLengthHoldoutN=0,runLengthHoldoutHits=0,runLengthBaselineHits=0,runLengthSupported=0;
+    if(!options.skipValidation&&holdoutN)for(const run of completed){if(run.start<holdoutStart)continue;const est=estimateRunLengthDistribution(history.slice(0,run.start+1)),actual=runLengthCategoryForLength(run.len);if(runLengthBestCategory(est.distribution)===actual)runLengthHoldoutHits++;if(runLengthBestCategory(est.baselineDistribution)===actual)runLengthBaselineHits++;if(est.contextSupport>=5)runLengthSupported++;runLengthHoldoutN++;}
+    return {probability:current.probability,baselineProbability,signal,forecastType:current.probability>=0.5?"P":"B",support:current.support,depth:current.depth,matchedContext:current.key,context:runs.slice(-8).map(runLengthExactLabel).join(" → "),currentRunLabel:runLengthExactLabel(currentRun),currentRunType:currentRun.type,currentRunLength:currentRun.len,currentRunStart:currentRun.start,recentPayRate,
+      holdoutN,holdoutHits,baselineHits,signalN,signalHits,holdoutAccuracy:holdoutN?holdoutHits/holdoutN:NaN,baselineAccuracy:holdoutN?baselineHits/holdoutN:NaN,signalAccuracy:signalN?signalHits/signalN:NaN,signalCoverage:holdoutN?signalN/holdoutN:NaN,brierScore:holdoutN?brierSum/holdoutN:NaN,baselineBrierScore:holdoutN?baselineBrierSum/holdoutN:NaN,supportedPredictions,
+      runLengthDistribution:lengthModel.distribution,runLengthBaselineDistribution:lengthModel.baselineDistribution,runLengthGuess:lengthModel.guess,runLengthSupport:lengthModel.support,runLengthContextSupport:lengthModel.contextSupport,runLengthContextDepth:lengthModel.contextDepth,runLengthContext:lengthModel.context,runLengthHoldoutN,runLengthHoldoutHits,runLengthBaselineHits,runLengthAccuracy:runLengthHoldoutN?runLengthHoldoutHits/runLengthHoldoutN:NaN,runLengthBaselineAccuracy:runLengthHoldoutN?runLengthBaselineHits/runLengthHoldoutN:NaN,runLengthSupported,runLengthFrequencySummary,exactRunFrequencies,patternMatches};
+  }
   function calculatePatternGuess(history, runPattern) {
     const names = ["1.00x–1.99x", "2.00x–4.99x", "5.00x–9.99x", "10.00x+"];
     const seq = history.map(outcomeBand);
@@ -634,7 +590,7 @@
     for(const c of components) for(let b=0;b<4;b++) scores[b]+=c.w*c.p[b]/weightSum;
 
     // Blend a separate B/P streak-context score into the four multiplier bands.
-    const streakModel = runPattern || calculateRunLengthSignal(history);
+    const streakModel = runPattern || calculateRunLengthSignal(history,{skipValidation:true,skipHistoryPatternMatches:true});
     if(streakModel.support >= 8) {
       const highTotal = scores[1] + scores[2] + scores[3];
       const highParts = highTotal > 0 ? scores.slice(1).map(v=>v/highTotal) : [1/3,1/3,1/3];
